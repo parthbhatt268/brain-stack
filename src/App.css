@@ -1,29 +1,19 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  overflow: hidden;
-  background: #f8f8f8;
-}
-
-.canvas-wrapper {
+.flow-wrapper {
   width: 100vw;
   height: 100vh;
-  overflow: scroll;
+  position: relative;
+}
+
+/* ReactFlow overrides */
+.react-flow__pane {
   cursor: grab;
 }
 
-.canvas-wrapper:active {
+.react-flow__pane:active {
   cursor: grabbing;
 }
 
-.canvas {
-  width: 6000px;
-  height: 6000px;
-  background-color: #ffffff;
-  background-image: radial-gradient(circle, #c8c8c8 1px, transparent 1px);
-  background-size: 28px 28px;
+.react-flow__selection {
+  background: var(--accent-alpha) !important;
+  border: 1px solid var(--accent) !important;
 }

@@ -1,11 +1,99 @@
-import './App.css'
+import { useState, useCallback, useMemo } from 'react';
+import {
+  ReactFlow,
+  Background,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
-function App() {
+import { ThemeProvider } from './context/ThemeContext';
+import { demoNodes } from './data/demoData';
+import { buildGraph } from './utils/buildGraph';
+import BrainNode from './components/BrainNode/BrainNode';
+import Toolbar from './components/Toolbar/Toolbar';
+import './App.css';
+
+const nodeTypes = { brainNode: BrainNode };
+
+function Flow() {
+  const initialGraph = useMemo(() => buildGraph(demoNodes), []);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
+  const [clipboard, setClipboard] = useState([]);
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  const selectedNodes = useMemo(
+    () => nodes.filter(n => n.selected),
+    [nodes],
+  );
+  const hasSelection = selectedNodes.length > 0;
+
+  const handleSelectAll = useCallback(() => {
+    setNodes(nds => nds.map(n => ({ ...n, selected: true })));
+  }, [setNodes]);
+
+  const handleDelete = useCallback(() => {
+    const selectedIds = new Set(nodes.filter(n => n.selected).map(n => n.id));
+    setClipboard(nodes.filter(n => n.selected));
+    setNodes(nds => nds.filter(n => !selectedIds.has(n.id)));
+    setEdges(eds =>
+      eds.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target)),
+    );
+  }, [nodes, setNodes, setEdges]);
+
+  const handlePaste = useCallback(() => {
+    if (!clipboard.length) return;
+    const offset = 80;
+    const pasted = clipboard.map(n => ({
+      ...n,
+      id: `${n.id}-copy-${Date.now()}`,
+      position: { x: n.position.x + offset, y: n.position.y + offset },
+      selected: false,
+    }));
+    setNodes(nds => [...nds, ...pasted]);
+  }, [clipboard, setNodes]);
+
   return (
-    <div className="canvas-wrapper">
-      <div className="canvas" />
+    <div className="flow-wrapper">
+      <Toolbar
+        hasSelection={hasSelection}
+        onZoomIn={() => zoomIn({ duration: 200 })}
+        onZoomOut={() => zoomOut({ duration: 200 })}
+        onSelectAll={handleSelectAll}
+        onDelete={handleDelete}
+        onPaste={handlePaste}
+      />
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.4 }}
+        selectionOnDrag
+        panOnDrag={[1]}
+        selectNodesOnDrag
+        selectionMode="partial"
+        minZoom={0.2}
+        maxZoom={4}
+        defaultEdgeOptions={{ type: 'smoothstep' }}
+      >
+        <Background gap={28} size={1} color="var(--dot-color)" />
+      </ReactFlow>
     </div>
-  )
+  );
 }
 
-export default App
+export default function App() {
+  return (
+    <ThemeProvider>
+      <ReactFlowProvider>
+        <Flow />
+      </ReactFlowProvider>
+    </ThemeProvider>
+  );
+}

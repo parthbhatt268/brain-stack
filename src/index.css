@@ -1,3 +1,40 @@
+/* ===== Theme Variables ===== */
+:root,
+[data-theme='light'] {
+  --accent: #f7c948;
+  --accent-alpha: rgba(247, 201, 72, 0.15);
+  --bg: #fafafa;
+  --dot-color: #d4d4d4;
+  --node-bg: #ffffff;
+  --handle-bg: #94a3b8;
+  --tooltip-bg: #ffffff;
+  --tooltip-text: #1e293b;
+
+  --toolbar-bg: rgba(255, 255, 255, 0.85);
+  --toolbar-border: rgba(0, 0, 0, 0.08);
+  --toolbar-text: #334155;
+  --toolbar-btn-hover: rgba(0, 0, 0, 0.06);
+  --toolbar-btn-active: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --accent: #f7c948;
+  --accent-alpha: rgba(247, 201, 72, 0.12);
+  --bg: #0f172a;
+  --dot-color: #1e293b;
+  --node-bg: #1e293b;
+  --handle-bg: #475569;
+  --tooltip-bg: #1e293b;
+  --tooltip-text: #e2e8f0;
+
+  --toolbar-bg: rgba(30, 41, 59, 0.9);
+  --toolbar-border: rgba(255, 255, 255, 0.08);
+  --toolbar-text: #cbd5e1;
+  --toolbar-btn-hover: rgba(255, 255, 255, 0.08);
+  --toolbar-btn-active: rgba(255, 255, 255, 0.12);
+}
+
+/* ===== Reset & Base ===== */
 * {
   margin: 0;
   padding: 0;
@@ -7,6 +44,9 @@
 body {
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  overflow: hidden;
+  transition: background 0.2s;
 }
 
 #root {
