@@ -1,5 +1,25 @@
-import { ZoomIn, ZoomOut, MousePointerClick, Hand, Scissors, ClipboardPaste } from 'lucide-react';
+import { ZoomIn, ZoomOut, MousePointerClick, Hand, Scissors, ClipboardPaste, Undo2, Redo2 } from 'lucide-react';
 import './Toolbar.css';
+
+function ToolBtn({ icon: Icon, onClick, active, disabled, danger, small, label, title }) {
+  return (
+    <button
+      className={[
+        'toolbar__btn',
+        active ? 'toolbar__btn--active' : '',
+        disabled ? 'toolbar__btn--disabled' : '',
+        danger ? 'toolbar__btn--danger' : '',
+        small ? 'toolbar__btn--small-label' : '',
+      ].filter(Boolean).join(' ')}
+      onClick={disabled ? undefined : onClick}
+      title={title}
+      aria-disabled={disabled}
+    >
+      <Icon size={small ? 14 : 18} />
+      {label && <span>{label}</span>}
+    </button>
+  );
+}
 
 export default function Toolbar({
   mode,
@@ -10,73 +30,59 @@ export default function Toolbar({
   onSelectAll,
   onDelete,
   onPaste,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }) {
   return (
     <div className="toolbar">
       {/* Pan / Select toggle */}
       <div className="toolbar__group">
-        <button
-          className={`toolbar__btn ${mode === 'pan' ? 'toolbar__btn--active' : ''}`}
-          onClick={() => onModeChange('pan')}
-          title="Pan — drag to move canvas"
-        >
-          <Hand size={18} />
-        </button>
-        <button
-          className={`toolbar__btn ${mode === 'select' ? 'toolbar__btn--active' : ''}`}
-          onClick={() => onModeChange('select')}
-          title="Select — drag to select nodes"
-        >
-          <MousePointerClick size={18} />
-        </button>
+        <ToolBtn icon={Hand} active={mode === 'pan'} onClick={() => onModeChange('pan')} title="Pan — drag to move canvas" />
+        <ToolBtn icon={MousePointerClick} active={mode === 'select'} onClick={() => onModeChange('select')} title="Select — drag to select nodes" />
       </div>
 
       <div className="toolbar__divider" />
 
       {/* Zoom */}
       <div className="toolbar__group">
-        <button className="toolbar__btn" onClick={onZoomIn} title="Zoom in">
-          <ZoomIn size={18} />
-        </button>
-        <button className="toolbar__btn" onClick={onZoomOut} title="Zoom out">
-          <ZoomOut size={18} />
-        </button>
+        <ToolBtn icon={ZoomIn} onClick={onZoomIn} title="Zoom in" />
+        <ToolBtn icon={ZoomOut} onClick={onZoomOut} title="Zoom out" />
       </div>
 
       <div className="toolbar__divider" />
 
-      {/* Cut & Paste — always visible, disabled when nothing is selected */}
+      {/* Undo / Redo */}
       <div className="toolbar__group">
-        <button
-          className={`toolbar__btn toolbar__btn--danger ${!hasSelection ? 'toolbar__btn--disabled' : ''}`}
-          onClick={hasSelection ? onDelete : undefined}
+        <ToolBtn icon={Undo2} onClick={onUndo} disabled={!canUndo} title={canUndo ? 'Undo' : 'Nothing to undo'} />
+        <ToolBtn icon={Redo2} onClick={onRedo} disabled={!canRedo} title={canRedo ? 'Redo' : 'Nothing to redo'} />
+      </div>
+
+      <div className="toolbar__divider" />
+
+      {/* Cut & Paste — always visible, disabled when nothing selected */}
+      <div className="toolbar__group">
+        <ToolBtn
+          icon={Scissors}
+          onClick={onDelete}
+          disabled={!hasSelection}
+          danger
           title={hasSelection ? 'Cut selected nodes' : 'Select a node first'}
-          aria-disabled={!hasSelection}
-        >
-          <Scissors size={18} />
-        </button>
-        <button
-          className={`toolbar__btn ${!hasSelection ? 'toolbar__btn--disabled' : ''}`}
-          onClick={hasSelection ? onPaste : undefined}
+        />
+        <ToolBtn
+          icon={ClipboardPaste}
+          onClick={onPaste}
+          disabled={!hasSelection}
           title={hasSelection ? 'Paste nodes' : 'Select a node first'}
-          aria-disabled={!hasSelection}
-        >
-          <ClipboardPaste size={18} />
-        </button>
+        />
       </div>
 
       <div className="toolbar__divider" />
 
       {/* Select all */}
       <div className="toolbar__group">
-        <button
-          className="toolbar__btn toolbar__btn--small-label"
-          onClick={onSelectAll}
-          title="Select all nodes"
-        >
-          <MousePointerClick size={14} />
-          <span>All</span>
-        </button>
+        <ToolBtn icon={MousePointerClick} onClick={onSelectAll} small label="All" title="Select all nodes" />
       </div>
     </div>
   );

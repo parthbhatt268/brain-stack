@@ -4,7 +4,7 @@
   position: relative;
 }
 
-/* Cursor changes based on mode */
+/* ── Cursor by mode ──────────────────────────────────────────────────────── */
 .flow--pan-mode .react-flow__pane {
   cursor: grab;
 }
@@ -17,8 +17,31 @@
   cursor: crosshair;
 }
 
-/* Selection box styling */
+/* ── Selection box ───────────────────────────────────────────────────────── */
 .react-flow__selection {
   background: var(--accent-alpha) !important;
   border: 1px solid var(--accent) !important;
+}
+
+/* ── Dimming: when any node is selected, fade out the rest ───────────────── */
+.flow--has-selection .react-flow__node {
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.flow--has-selection .react-flow__node:not(.selected) {
+  opacity: 0.25;
+  filter: saturate(0.15);
+}
+
+.flow--has-selection .react-flow__node.selected {
+  opacity: 1;
+  filter: none;
+}
+
+/* ── Responsive: shrink toolbar on small screens ─────────────────────────── */
+@media (max-width: 480px) {
+  .toolbar {
+    top: 56px;
+    left: 8px;
+  }
 }

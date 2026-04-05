@@ -62,3 +62,32 @@ export function buildGraph(dataNodes) {
 
   return { nodes, edges };
 }
+
+/**
+ * Rebuilds only the edges from the current flow nodes (used after category changes).
+ * Nodes are sorted by y-position within each category to preserve the timeline order.
+ */
+export function rebuildEdges(flowNodes) {
+  const groups = {};
+  for (const node of flowNodes) {
+    const cat = node.data.category;
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(node);
+  }
+
+  const edges = [];
+  for (const [category, groupNodes] of Object.entries(groups)) {
+    const sorted = [...groupNodes].sort((a, b) => a.position.y - b.position.y);
+    const color = getCategoryColor(category);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      edges.push({
+        id: `edge-${sorted[i].id}-${sorted[i + 1].id}`,
+        source: sorted[i].id,
+        target: sorted[i + 1].id,
+        style: { stroke: color, strokeWidth: 2 },
+        animated: false,
+      });
+    }
+  }
+  return edges;
+}
