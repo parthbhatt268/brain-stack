@@ -4,15 +4,20 @@
   position: relative;
 }
 
-/* ReactFlow overrides */
-.react-flow__pane {
+/* Cursor changes based on mode */
+.flow--pan-mode .react-flow__pane {
   cursor: grab;
 }
 
-.react-flow__pane:active {
+.flow--pan-mode .react-flow__pane:active {
   cursor: grabbing;
 }
 
+.flow--select-mode .react-flow__pane {
+  cursor: crosshair;
+}
+
+/* Selection box styling */
 .react-flow__selection {
   background: var(--accent-alpha) !important;
   border: 1px solid var(--accent) !important;

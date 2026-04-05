@@ -1,7 +1,7 @@
 import { getCategoryColor } from './categoryColors';
 
-const CATEGORY_X_SPACING = 350;
-const Y_TIME_SCALE = 0.8; // px per hour from earliest node
+const CATEGORY_X_SPACING = 200;
+const Y_TIME_SCALE = 0.12; // px per hour from earliest node — keeps nodes compact
 
 export function buildGraph(dataNodes) {
   if (!dataNodes.length) return { nodes: [], edges: [] };

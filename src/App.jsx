@@ -14,6 +14,7 @@ import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
 import BrainNode from './components/BrainNode/BrainNode';
 import Toolbar from './components/Toolbar/Toolbar';
+import Ribbon from './components/Ribbon/Ribbon';
 import './App.css';
 
 const nodeTypes = { brainNode: BrainNode };
@@ -23,7 +24,8 @@ function Flow() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
   const [clipboard, setClipboard] = useState([]);
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const [mode, setMode] = useState('pan'); // 'pan' | 'select'
+  const { zoomIn, zoomOut } = useReactFlow();
 
   const selectedNodes = useMemo(
     () => nodes.filter(n => n.selected),
@@ -56,12 +58,17 @@ function Flow() {
     setNodes(nds => [...nds, ...pasted]);
   }, [clipboard, setNodes]);
 
+  const isPan = mode === 'pan';
+
   return (
     <div className="flow-wrapper">
+      <Ribbon />
       <Toolbar
+        mode={mode}
+        onModeChange={setMode}
         hasSelection={hasSelection}
-        onZoomIn={() => zoomIn({ duration: 200 })}
-        onZoomOut={() => zoomOut({ duration: 200 })}
+        onZoomIn={() => zoomIn({ duration: 350 })}
+        onZoomOut={() => zoomOut({ duration: 350 })}
         onSelectAll={handleSelectAll}
         onDelete={handleDelete}
         onPaste={handlePaste}
@@ -74,13 +81,14 @@ function Flow() {
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.4 }}
-        selectionOnDrag
-        panOnDrag={[1]}
-        selectNodesOnDrag
+        panOnDrag={isPan}
+        selectionOnDrag={!isPan}
+        selectNodesOnDrag={!isPan}
         selectionMode="partial"
         minZoom={0.2}
         maxZoom={4}
         defaultEdgeOptions={{ type: 'smoothstep' }}
+        className={isPan ? 'flow--pan-mode' : 'flow--select-mode'}
       >
         <Background gap={28} size={1} color="var(--dot-color)" />
       </ReactFlow>
