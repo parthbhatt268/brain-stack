@@ -1,4 +1,4 @@
-import { ZoomIn, ZoomOut, MousePointerClick, Hand, Scissors, ClipboardPaste, Undo2, Redo2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, MousePointerClick, Hand, Scissors, ClipboardPaste, Undo2, Redo2, Maximize2 } from 'lucide-react';
 import './Toolbar.css';
 
 function ToolBtn({ icon: Icon, onClick, active, disabled, danger, small, label, title }) {
@@ -28,6 +28,7 @@ export default function Toolbar({
   hasClipboard,
   onZoomIn,
   onZoomOut,
+  onFitView,
   onSelectAll,
   onDelete,
   onPaste,
@@ -50,6 +51,7 @@ export default function Toolbar({
       <div className="toolbar__group">
         <ToolBtn icon={ZoomIn} onClick={onZoomIn} title="Zoom in" />
         <ToolBtn icon={ZoomOut} onClick={onZoomOut} title="Zoom out" />
+        <ToolBtn icon={Maximize2} onClick={onFitView} title="Fit all nodes to screen" />
       </div>
 
       <div className="toolbar__divider" />

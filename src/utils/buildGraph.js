@@ -2,7 +2,7 @@ import { getCategoryColor } from './categoryColors';
 
 const CATEGORY_X_SPACING = 220; // gap between separate category groups
 const BRANCH_X_SPACING   = 160; // gap between subcategory branches within a split category
-const Y_TIME_SCALE        = 0.12; // px per hour — keeps nodes compact
+const NODE_Y_SPACING      = 120; // fixed px between consecutive nodes in a lane
 const FLAG_Y_OFFSET       = 90;  // px above the topmost node in the tree
 
 /**
@@ -17,8 +17,6 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
   const sorted = [...dataNodes].sort(
     (a, b) => new Date(a.datetime) - new Date(b.datetime),
   );
-
-  const earliestTime = new Date(sorted[0].datetime).getTime();
 
   // Unique categories in first-appearance order
   const categories = [...new Set(sorted.map(n => n.category))];
@@ -57,20 +55,23 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
   }
 
   // ── Brain nodes ──────────────────────────────────────────────────────────
-  const brainNodes = sorted.map(item => {
-    const hoursFromStart =
-      (new Date(item.datetime).getTime() - earliestTime) / (1000 * 60 * 60);
+  // Build per-lane sorted index for equal spacing (sorted is already chronological)
+  const laneIndex = {};
 
+  const brainNodes = sorted.map(item => {
     const laneKey = splitCategories.has(item.category)
       ? `${item.category}::${item.subcategory || 'General'}`
       : item.category;
+
+    if (laneIndex[laneKey] === undefined) laneIndex[laneKey] = 0;
+    const idx = laneIndex[laneKey]++;
 
     return {
       id: item.id,
       type: 'brainNode',
       position: {
         x: laneX[laneKey] ?? 0,
-        y: hoursFromStart * Y_TIME_SCALE,
+        y: idx * NODE_Y_SPACING,
       },
       data: {
         ...item,
@@ -125,7 +126,7 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
           id: `edge-flag-${cat}-${chronological[0].id}`,
           source: `flag-${cat}`,
           target: chronological[0].id,
-          type: 'smoothstep',
+          type: 'default',
           style: { stroke: color, strokeWidth: 2 },
         });
 
@@ -135,7 +136,7 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
             id: `edge-${chronological[i].id}-${chronological[i + 1].id}`,
             source: chronological[i].id,
             target: chronological[i + 1].id,
-            type: 'smoothstep',
+            type: 'default',
             style: { stroke: color, strokeWidth: 2 },
           });
         }
@@ -151,7 +152,7 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
         id: `edge-flag-${cat}`,
         source: `flag-${cat}`,
         target: chronological[0].id,
-        type: 'smoothstep',
+        type: 'default',
         style: { stroke: color, strokeWidth: 2 },
       });
 
@@ -161,7 +162,7 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
           id: `edge-${chronological[i].id}-${chronological[i + 1].id}`,
           source: chronological[i].id,
           target: chronological[i + 1].id,
-          type: 'smoothstep',
+          type: 'default',
           style: { stroke: color, strokeWidth: 2 },
         });
       }

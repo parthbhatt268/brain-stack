@@ -63,7 +63,7 @@ function Flow() {
   const [activeNode, setActiveNode] = useState(null);
   const [flagMenu, setFlagMenu]     = useState(null); // { flag, position }
 
-  const { zoomIn, zoomOut } = useReactFlow();
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   const selectedNodes = useMemo(() => nodes.filter(n => n.selected), [nodes]);
   const hasSelection  = selectedNodes.length > 0;
@@ -204,6 +204,7 @@ function Flow() {
         hasClipboard={clipboard.length > 0}
         onZoomIn={() => zoomIn({ duration: 350 })}
         onZoomOut={() => zoomOut({ duration: 350 })}
+        onFitView={() => fitView({ duration: 500, padding: 0.4 })}
         onSelectAll={handleSelectAll}
         onDelete={handleDelete}
         onPaste={handlePaste}
@@ -229,7 +230,7 @@ function Flow() {
         minZoom={0.2}
         maxZoom={4}
         deleteKeyCode="Delete"
-        defaultEdgeOptions={{ type: 'smoothstep' }}
+        defaultEdgeOptions={{ type: 'default' }}
         className={[
           isPan ? 'flow--pan-mode' : 'flow--select-mode',
           hasSelection ? 'flow--has-selection' : '',
