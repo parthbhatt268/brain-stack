@@ -1,29 +1,26 @@
 import { useState } from 'react';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyseUrl } from '../../utils/fakeApi';
+import { validateUrl } from '../../utils/validateUrl';
 import './AddNodeModal.css';
 
 export default function AddNodeModal({ onAdd, onClose }) {
-  const [url, setUrl]       = useState('');
+  const [url, setUrl]         = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState('');
+  const [error, setError]     = useState('');
 
   async function handleSave() {
-    const trimmed = url.trim();
-    if (!trimmed) {
-      setError('Paste a link before saving.');
-      return;
-    }
-    try { new URL(trimmed); } catch {
-      setError("That doesn't look like a valid URL — make sure it starts with https://");
+    const { ok, error: validationError } = validateUrl(url);
+    if (!ok) {
+      setError(validationError);
       return;
     }
 
     setError('');
     setLoading(true);
     try {
-      const data = await analyseUrl(trimmed);
-      onAdd({ url: trimmed, ...data });
+      const data = await analyseUrl(url.trim());
+      onAdd({ url: url.trim(), ...data });
       onClose();
     } catch {
       setError('Something went wrong. Please try again.');
@@ -42,21 +39,20 @@ export default function AddNodeModal({ onAdd, onClose }) {
 
   return (
     <div className="add-modal-overlay" onMouseDown={handleOverlayMouseDown}>
-      <div className="add-modal" role="dialog" aria-modal="true" aria-labelledby="add-modal-title" onKeyDown={handleKeyDown}>
-
+      <div
+        className="add-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-modal-title"
+        onKeyDown={handleKeyDown}
+      >
         <div className="add-modal__header">
           <span className="add-modal__icon-wrap">
             <Link2 size={18} />
           </span>
-          <div className="add-modal__header-text">
-            <h2 className="add-modal__title" id="add-modal-title">
-              Save a link to your Brain Stack
-            </h2>
-            <p className="add-modal__subtitle">
-              Paste any URL — YouTube, GitHub, Reddit, articles, and more.
-              We'll analyse it and place it in the right category on your graph automatically.
-            </p>
-          </div>
+          <h2 className="add-modal__title" id="add-modal-title">
+            Save a link to your Brain Stack
+          </h2>
         </div>
 
         <div className="add-modal__body">
@@ -96,7 +92,6 @@ export default function AddNodeModal({ onAdd, onClose }) {
             )}
           </button>
         </div>
-
       </div>
     </div>
   );

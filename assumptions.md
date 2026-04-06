@@ -69,6 +69,27 @@ On mount, fetch nodes from the backend instead of importing `demoData`. On "Save
 
 ---
 
+## 6. URL security validation is frontend-only
+
+**File:** `src/utils/validateUrl.js`
+
+**What it does now:**
+Four client-side checks before the URL reaches the (future) backend:
+1. Protocol must be `https:` — blocks `http://`, `file://`, `javascript://`, `data://`, `ftp://`, etc.
+2. Hostname must not be a private/loopback address — blocks `localhost`, `127.*`, `10.*`, `192.168.*`, `172.16–31.*`, `169.254.*` (AWS metadata), IPv6 ULA/link-local.
+3. No embedded credentials (`https://user:pass@domain.com`).
+4. URL length capped at 2048 characters.
+
+**Why this is not enough:**
+Frontend validation is trivially bypassed. An attacker can call the backend directly. The backend must re-apply the same checks (especially the private IP blocklist) before making any outbound fetch — otherwise **SSRF** (Server-Side Request Forgery) is possible. A malicious URL like `https://169.254.169.254/latest/meta-data/` could leak cloud credentials if fetched server-side without validation.
+
+**How to fix when backend is built:**
+- Re-validate protocol and credentials server-side.
+- Resolve the hostname to an IP *before* fetching, then check that IP against the same private-range blocklist (DNS rebinding resistance).
+- Fetch with a hard timeout (e.g. 5 s), follow zero redirects to private IPs, and run in a network namespace that cannot reach internal services.
+
+---
+
 ## 5. Source icon detection is client-side only
 
 **File:** `src/utils/fakeApi.js` → `detectSource(url)`
