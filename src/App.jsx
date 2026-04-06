@@ -11,6 +11,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+import { Plus } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
@@ -22,6 +23,7 @@ import Ribbon from './components/Ribbon/Ribbon';
 import SaveBar from './components/SaveBar/SaveBar';
 import NodeModal from './components/NodeModal/NodeModal';
 import FlagMenu from './components/FlagMenu/FlagMenu';
+import AddNodeModal from './components/AddNodeModal/AddNodeModal';
 import './App.css';
 
 const nodeTypes = { brainNode: BrainNode, flagNode: FlagNode };
@@ -60,8 +62,9 @@ function Flow() {
   const canUndo = past.length > 0;
   const canRedo = future.length > 0;
 
-  const [activeNode, setActiveNode] = useState(null);
-  const [flagMenu, setFlagMenu]     = useState(null); // { flag, position }
+  const [activeNode, setActiveNode]   = useState(null);
+  const [flagMenu, setFlagMenu]       = useState(null); // { flag, position }
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -176,6 +179,59 @@ function Flow() {
     setIsDirty(false);
   }, [nodes, edges, savedSnapshot, pushHistory, setNodes, setEdges]);
 
+  // ── Add node via URL ──────────────────────────────────────────────────────
+  const handleAddNode = useCallback(({ url, category, subcategory, source, summary, origin }) => {
+    pushHistory(nodes, edges);
+
+    const color = getCategoryColor(category);
+
+    // Find the last node in the target lane so we can chain below it
+    const laneNodes = nodes.filter(n => {
+      if (n.type !== 'brainNode' || n.data.category !== category) return false;
+      if (isSplitMode && subcategory) return n.data.subcategory === subcategory;
+      return true;
+    });
+
+    const lastNode = laneNodes.reduce(
+      (latest, n) => (!latest || n.position.y > latest.position.y ? n : latest),
+      null,
+    );
+
+    const newX  = lastNode?.position.x ?? 0;
+    const newY  = lastNode ? lastNode.position.y + 120 : 0;
+    const newId = `node-added-${Date.now()}`;
+
+    const newNode = {
+      id: newId,
+      type: 'brainNode',
+      position: { x: newX, y: newY },
+      data: {
+        id: newId,
+        category,
+        subcategory: subcategory ?? null,
+        source,
+        url,
+        summary,
+        datetime: new Date().toISOString(),
+        origin,
+        color,
+      },
+    };
+
+    const sourceId = lastNode ? lastNode.id : `flag-${category}`;
+    const newEdge = {
+      id: `edge-${sourceId}-${newId}`,
+      source: sourceId,
+      target: newId,
+      type: 'default',
+      style: { stroke: color, strokeWidth: 2 },
+    };
+
+    setNodes(nds => [...nds, newNode]);
+    setEdges(eds => [...eds, newEdge]);
+    setIsDirty(true);
+  }, [nodes, edges, isSplitMode, pushHistory, setNodes, setEdges]);
+
   // ── Node / flag clicks ────────────────────────────────────────────────────
   const handleNodeClick = useCallback((event, node) => {
     if (node.type === 'flagNode') {
@@ -245,6 +301,23 @@ function Flow() {
       </ReactFlow>
 
       <SaveBar isDirty={isDirty} onSave={handleSave} onDiscard={handleDiscard} />
+
+      {/* Add-node FAB — lifts above SaveBar when SaveBar is visible */}
+      <button
+        className={`add-node-fab${isDirty ? ' add-node-fab--lifted' : ''}`}
+        onClick={() => setShowAddModal(true)}
+        title="Add a link to your Brain Stack"
+        aria-label="Add a link to your Brain Stack"
+      >
+        <Plus size={24} />
+      </button>
+
+      {showAddModal && (
+        <AddNodeModal
+          onAdd={handleAddNode}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
 
       {activeNode && (
         <NodeModal node={activeNode} onClose={() => setActiveNode(null)} />
