@@ -5,100 +5,87 @@ Update this file whenever a stub is removed or a new one is added.
 
 ---
 
-## 1. URL classification API — always returns AI / LLM & Prompting
+## 1. URL classification API always returns AI / LLM & Prompting
 
 **File:** `src/utils/fakeApi.js` → `analyseUrl(url)`
 
 **What it does now:**
-Simulates an 900 ms network delay, then unconditionally returns:
+Simulates a 900 ms network delay, then unconditionally returns:
 ```js
 { category: 'ai', subcategory: 'LLM & Prompting', source: <detected>, summary: <placeholder>, origin: 'added' }
 ```
 
 **What it should do:**
-Call a real backend endpoint (e.g. `POST /api/analyse`) that:
-- Fetches or scrapes the URL
-- Uses an LLM or classifier to determine `category`, `subcategory`, and produce a ~50-word `summary`
-- Returns the full node metadata shape
+Call a real backend endpoint (e.g. `POST /api/analyse`) that fetches/scrapes the URL, classifies it with an LLM or classifier, and returns `{ category, subcategory, source, summary, origin }`.
 
 **How to remove the stub:**
-Replace the body of `analyseUrl` with a `fetch('/api/analyse', { method: 'POST', body: JSON.stringify({ url }) })` call.
-The response shape must match: `{ category, subcategory, source, summary, origin }`.
+Replace the body of `analyseUrl` with a real `fetch('/api/analyse', { method: 'POST', body: JSON.stringify({ url }) })` call.
 
 ---
 
-## 2. Split mode only supported for the `ai` category
+## 2. "Group by Platform" branches on the `source` field, which is client-side detected
 
-**File:** `src/App.jsx` — `SPLITTABLE_CATEGORIES`
+**File:** `src/utils/buildGraph.js` — `viewMode === 'platform'` path; `src/utils/fakeApi.js` → `detectSource`
 
 **What it does now:**
-`SPLITTABLE_CATEGORIES` is derived at module load from `demoData` — any category that has at least one node with a non-null `subcategory`. Currently only `ai` nodes have subcategories, so only `ai` appears in the set.
+In platform view, each category is split into branches by `item.source` (e.g., `youtube`, `github`). For demo data this is hardcoded; for nodes added via the FAB it is derived from the URL hostname using a 7-entry map. Unknown hostnames fall back to `'article'`.
 
-Gardening and Guitar stub a `console.log('split triggered: …')` inside `buildGraph` but do nothing structurally — they have no subcategory data so no branching occurs.
-
-**What it should do:**
-Any category with meaningful subcategories should branch in split mode.
-When the backend provides real data, the subcategory field should be populated, and the split will work automatically — no code change needed beyond having real data.
+**How to fix when ready:**
+The classification backend should return a typed `source` enum. Extend the hostname map or trust the backend value entirely.
 
 ---
 
-## 3. New nodes added via FAB use surgical append, not full graph rebuild
+## 3. New nodes added via the FAB use surgical append, not a full graph rebuild
 
 **File:** `src/App.jsx` → `handleAddNode`
 
 **What it does now:**
-When a URL is analysed and a node is added, it finds the last node in the target category lane (lowest Y) and appends the new node 120 px below it, connecting them with an edge. The rest of the graph is untouched.
+Finds the bottom-most node in the target lane and appends 120 px below it with a connecting edge. The rest of the graph is untouched.
 
 **Limitation:**
-If the classified `category` does not yet exist in the current graph (no flag node, no lane), the new node falls back to `x: 0, y: 0` with an edge sourced from `flag-<category>` which may not exist. This will produce a disconnected edge.
+If the API returns a `category` that doesn't exist in the current graph (no flag, no lane), the new node falls back to `x: 0, y: 0` and the edge source `flag-<category>` may not exist, producing a disconnected edge.
 
 **How to fix when ready:**
-If `laneNodes` is empty and the category is new, call `buildGraph` on the full updated dataset (including the new node) and push the result to `setNodes`/`setEdges`. Or assign the next available lane X from `buildGraph`'s layout logic.
+When `laneNodes` is empty and the category is new, call `buildGraph` on the full updated dataset and push the result to `setNodes`/`setEdges`.
 
 ---
 
-## 4. Demo data is static (no backend persistence)
+## 4. Demo data is static — "auto-save" is UI-only with no backend persistence
 
-**File:** `src/data/demoData.js`
+**File:** `src/data/demoData.js`; `src/App.jsx` → `triggerAutoSave`
 
 **What it does now:**
-17 hardcoded node records are loaded on startup. "Save" only snapshots state in React memory (`savedSnapshot`); nothing is written to a database. On page refresh, the graph resets to the original demo data.
+17 hardcoded nodes are loaded on startup. The "Saved ✓" ribbon indicator appears on intentional changes but no data is written anywhere. On page refresh the graph resets to the original demo data.
 
 **How to fix when ready:**
-On mount, fetch nodes from the backend instead of importing `demoData`. On "Save", `POST` the current `nodes` and `edges` state to a persistence endpoint.
+On mount, fetch nodes from the backend instead of importing `demoData`. In `triggerAutoSave`, call a debounced `POST /api/save` with the current nodes/edges.
 
 ---
 
-## 6. URL security validation is frontend-only
+## 5. URL security validation is frontend-only
 
 **File:** `src/utils/validateUrl.js`
 
 **What it does now:**
-Four client-side checks before the URL reaches the (future) backend:
-1. Protocol must be `https:` — blocks `http://`, `file://`, `javascript://`, `data://`, `ftp://`, etc.
-2. Hostname must not be a private/loopback address — blocks `localhost`, `127.*`, `10.*`, `192.168.*`, `172.16–31.*`, `169.254.*` (AWS metadata), IPv6 ULA/link-local.
-3. No embedded credentials (`https://user:pass@domain.com`).
-4. URL length capped at 2048 characters.
+Four checks before the URL reaches the backend: (1) `https:` protocol only, (2) no private/loopback IP in the hostname, (3) no embedded credentials, (4) max 2048 chars.
 
 **Why this is not enough:**
-Frontend validation is trivially bypassed. An attacker can call the backend directly. The backend must re-apply the same checks (especially the private IP blocklist) before making any outbound fetch — otherwise **SSRF** (Server-Side Request Forgery) is possible. A malicious URL like `https://169.254.169.254/latest/meta-data/` could leak cloud credentials if fetched server-side without validation.
+Frontend checks are trivially bypassed. The backend must re-validate and — critically — resolve the hostname to an IP *before* fetching, then re-check it against the private-range blocklist (DNS rebinding resistance). Otherwise **SSRF** is possible (e.g. `https://169.254.169.254/` leaks AWS metadata).
 
 **How to fix when backend is built:**
-- Re-validate protocol and credentials server-side.
-- Resolve the hostname to an IP *before* fetching, then check that IP against the same private-range blocklist (DNS rebinding resistance).
-- Fetch with a hard timeout (e.g. 5 s), follow zero redirects to private IPs, and run in a network namespace that cannot reach internal services.
+Re-validate protocol, credentials, and IP range server-side. Fetch with a hard timeout, no redirects to private IPs, inside a sandboxed network namespace.
 
 ---
 
-## 5. Source icon detection is client-side only
+## 6. View picker panel may clip on very narrow viewports
 
-**File:** `src/utils/fakeApi.js` → `detectSource(url)`
+**File:** `src/components/Toolbar/Toolbar.css` — `.view-picker`
 
 **What it does now:**
-Derives the `source` field (youtube / github / etc.) from the URL hostname using a hardcoded map.
+`position: absolute; left: calc(100% + 8px); top: 0` positions the panel to the right of the toolbar. Works correctly when the toolbar moves because it is toolbar-relative.
 
 **Limitation:**
-Only the 7 listed domains are mapped. Anything else falls back to `'article'`.
+No smart repositioning — on viewports narrower than ~300 px the panel may clip the right edge of the screen.
 
 **How to fix when ready:**
-The classification backend can return a more accurate `source` field, or the domain map can be extended.
+Use a `getBoundingClientRect` check on open and flip to `right: calc(100% + 8px)` when the panel would overflow the viewport.

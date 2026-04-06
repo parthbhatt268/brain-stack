@@ -1,15 +1,45 @@
-import { ZoomIn, ZoomOut, MousePointerClick, Hand, Scissors, ClipboardPaste, Undo2, Redo2, Maximize2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import {
+  ZoomIn, ZoomOut, Maximize2,
+  MousePointerClick, Hand,
+  Scissors, ClipboardPaste,
+  Undo2, Redo2,
+  Clock, Layers, LayoutGrid,
+} from 'lucide-react';
 import './Toolbar.css';
 
+// ── View mode definitions ─────────────────────────────────────────────────────
+const VIEW_MODES = [
+  {
+    id: 'timeline',
+    icon: Clock,
+    label: 'Timeline',
+    description: 'One chain per category, ordered by date',
+  },
+  {
+    id: 'subcategory',
+    icon: Layers,
+    label: 'Group by Topic',
+    description: 'Split each category into topic branches',
+  },
+  {
+    id: 'platform',
+    icon: LayoutGrid,
+    label: 'Group by Platform',
+    description: 'Split by source — YouTube, GitHub, etc.',
+  },
+];
+
+// ── Generic toolbar button ────────────────────────────────────────────────────
 function ToolBtn({ icon: Icon, onClick, active, disabled, danger, small, label, title }) {
   return (
     <button
       className={[
         'toolbar__btn',
-        active ? 'toolbar__btn--active' : '',
-        disabled ? 'toolbar__btn--disabled' : '',
-        danger ? 'toolbar__btn--danger' : '',
-        small ? 'toolbar__btn--small-label' : '',
+        active    ? 'toolbar__btn--active'   : '',
+        disabled  ? 'toolbar__btn--disabled' : '',
+        danger    ? 'toolbar__btn--danger'   : '',
+        small     ? 'toolbar__btn--small-label' : '',
       ].filter(Boolean).join(' ')}
       onClick={disabled ? undefined : onClick}
       title={title}
@@ -21,9 +51,54 @@ function ToolBtn({ icon: Icon, onClick, active, disabled, danger, small, label, 
   );
 }
 
+// ── View picker (opens to the right of the toolbar) ───────────────────────────
+function ViewPicker({ viewMode, onViewModeChange, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleMouseDown(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    function handleKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="view-picker">
+      <p className="view-picker__label">Layout</p>
+      {VIEW_MODES.map(({ id, icon: Icon, label, description }) => (
+        <button
+          key={id}
+          className={`view-picker__option${viewMode === id ? ' view-picker__option--active' : ''}`}
+          onClick={() => { onViewModeChange(id); onClose(); }}
+        >
+          <span className="view-picker__option-icon">
+            <Icon size={15} />
+          </span>
+          <span className="view-picker__option-text">
+            <span className="view-picker__option-name">{label}</span>
+            <span className="view-picker__option-desc">{description}</span>
+          </span>
+          {viewMode === id && (
+            <span className="view-picker__check">✓</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main Toolbar ──────────────────────────────────────────────────────────────
 export default function Toolbar({
   mode,
   onModeChange,
+  viewMode,
+  onViewModeChange,
   hasSelection,
   hasClipboard,
   onZoomIn,
@@ -37,8 +112,35 @@ export default function Toolbar({
   onUndo,
   onRedo,
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const viewBtnRef = useRef(null);
+
+  const currentMode = VIEW_MODES.find(m => m.id === viewMode) ?? VIEW_MODES[0];
+  const ViewIcon = currentMode.icon;
+
   return (
     <div className="toolbar">
+      {/* View mode picker */}
+      <div className="toolbar__group" style={{ position: 'relative' }}>
+        <button
+          ref={viewBtnRef}
+          className={`toolbar__btn${pickerOpen ? ' toolbar__btn--active' : ''}`}
+          onClick={() => setPickerOpen(o => !o)}
+          title={`Layout: ${currentMode.label}`}
+        >
+          <ViewIcon size={18} />
+        </button>
+        {pickerOpen && (
+          <ViewPicker
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+      </div>
+
+      <div className="toolbar__divider" />
+
       {/* Pan / Select toggle */}
       <div className="toolbar__group">
         <ToolBtn icon={Hand} active={mode === 'pan'} onClick={() => onModeChange('pan')} title="Pan — drag to move canvas" />
@@ -64,7 +166,7 @@ export default function Toolbar({
 
       <div className="toolbar__divider" />
 
-      {/* Cut & Paste — always visible, disabled when nothing selected */}
+      {/* Cut & Paste */}
       <div className="toolbar__group">
         <ToolBtn
           icon={Scissors}

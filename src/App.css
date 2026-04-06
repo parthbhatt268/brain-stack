@@ -73,14 +73,9 @@
   transform: scale(0.95);
 }
 
-/* Lift above the SaveBar when it slides up */
-.add-node-fab--lifted {
-  bottom: 80px;
-}
-
 @media (max-width: 480px) {
   .add-node-fab {
-    bottom: 80px; /* always above mobile SaveBar which spans full width */
+    bottom: 20px;
     right: 16px;
   }
 }

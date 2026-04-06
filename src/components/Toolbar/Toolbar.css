@@ -105,3 +105,103 @@
   font-size: 11px;
   font-weight: 600;
 }
+
+/* ── View picker panel ───────────────────────────────────────────────────── */
+.view-picker {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  z-index: 50;
+  width: 230px;
+  background: var(--toolbar-bg);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  animation: picker-pop 0.15s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes picker-pop {
+  from { opacity: 0; transform: scale(0.94) translateX(-4px); }
+  to   { opacity: 1; transform: scale(1) translateX(0); }
+}
+
+.view-picker__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--toolbar-text);
+  opacity: 0.4;
+  margin: 4px 8px 6px;
+}
+
+.view-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.view-picker__option:hover {
+  background: var(--toolbar-btn-hover);
+}
+
+.view-picker__option--active {
+  background: var(--accent-alpha);
+}
+
+.view-picker__option--active:hover {
+  background: var(--accent-alpha);
+}
+
+.view-picker__option-icon {
+  flex-shrink: 0;
+  color: var(--toolbar-text);
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+}
+
+.view-picker__option--active .view-picker__option-icon {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.view-picker__option-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.view-picker__option-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--toolbar-text);
+}
+
+.view-picker__option-desc {
+  font-size: 11px;
+  color: var(--toolbar-text);
+  opacity: 0.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.view-picker__check {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}

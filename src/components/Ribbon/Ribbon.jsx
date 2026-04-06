@@ -1,8 +1,9 @@
-import { useTheme } from '../../context/ThemeContext';
+import { Check } from 'lucide-react';
 import { Sun, Moon, User } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 import './Ribbon.css';
 
-export default function Ribbon({ isSplitMode, onToggleSplitMode }) {
+export default function Ribbon({ savedVisible }) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -11,33 +12,13 @@ export default function Ribbon({ isSplitMode, onToggleSplitMode }) {
         <span className="ribbon__logo">Brain Stack</span>
       </div>
 
-      <div className="ribbon__center">
-        <div className="view-toggle" title="Switch between chronological and split view">
-          <button
-            className={`view-toggle__option ${!isSplitMode ? 'view-toggle__option--active' : ''}`}
-            onClick={() => isSplitMode && onToggleSplitMode()}
-          >
-            Default
-          </button>
-
-          {/* Sliding track */}
-          <div className="view-toggle__track" onClick={onToggleSplitMode}>
-            <span
-              className="view-toggle__thumb"
-              style={{ transform: isSplitMode ? 'translateX(22px)' : 'translateX(0)' }}
-            />
-          </div>
-
-          <button
-            className={`view-toggle__option ${isSplitMode ? 'view-toggle__option--active' : ''}`}
-            onClick={() => !isSplitMode && onToggleSplitMode()}
-          >
-            Split
-          </button>
-        </div>
-      </div>
-
       <div className="ribbon__right">
+        {/* Auto-save indicator */}
+        <span className={`ribbon__saved${savedVisible ? ' ribbon__saved--visible' : ''}`} aria-live="polite">
+          <Check size={12} strokeWidth={2.5} />
+          Saved
+        </span>
+
         <label className="theme-switch" title="Toggle theme">
           <input
             type="checkbox"

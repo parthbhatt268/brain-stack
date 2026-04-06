@@ -1,7 +1,7 @@
 import { getCategoryColor } from './categoryColors';
 
 const CATEGORY_X_SPACING = 220; // gap between separate category groups
-const BRANCH_X_SPACING   = 160; // gap between subcategory branches within a split category
+const BRANCH_X_SPACING   = 160; // gap between branches within a category
 const NODE_Y_SPACING      = 120; // fixed px between consecutive nodes in a lane
 const FLAG_Y_OFFSET       = 90;  // px above the topmost node in the tree
 
@@ -9,9 +9,12 @@ const FLAG_Y_OFFSET       = 90;  // px above the topmost node in the tree
  * Build the full ReactFlow node + edge graph from raw data nodes.
  *
  * @param {object[]} dataNodes - raw node records from demoData / DB
- * @param {Set<string>} splitCategories - categories currently in split (branched) mode
+ * @param {'timeline'|'subcategory'|'platform'} viewMode
+ *   timeline   — single chronological chain per category
+ *   subcategory — branch per subcategory value within each category
+ *   platform    — branch per source (youtube, github, etc.) within each category
  */
-export function buildGraph(dataNodes, splitCategories = new Set()) {
+export function buildGraph(dataNodes, viewMode = 'subcategory') {
   if (!dataNodes.length) return { nodes: [], edges: [] };
 
   const sorted = [...dataNodes].sort(
@@ -21,31 +24,38 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
   // Unique categories in first-appearance order
   const categories = [...new Set(sorted.map(n => n.category))];
 
-  // ── Assign x positions for each lane ────────────────────────────────────
-  // laneX key: "category" for non-split, "category::subcategory" for split
-  const laneX          = {};
-  const categoryFlagX  = {}; // center x for each category's flag
+  const isBranched = viewMode !== 'timeline';
 
+  // Returns the branch label for an item, or null if no branching
+  function branchOf(item) {
+    if (viewMode === 'subcategory') return item.subcategory || 'General';
+    if (viewMode === 'platform')    return item.source      || 'Other';
+    return null;
+  }
+
+  function laneKeyOf(item) {
+    const branch = branchOf(item);
+    return branch ? `${item.category}::${branch}` : item.category;
+  }
+
+  // ── Assign x positions for each lane ────────────────────────────────────
+  const laneX         = {};
+  const categoryFlagX = {};
   let cursor = 0;
 
   for (const cat of categories) {
-    if (splitCategories.has(cat)) {
-      const subcats = [
-        ...new Set(
-          sorted
-            .filter(n => n.category === cat)
-            .map(n => n.subcategory || 'General'),
-        ),
+    if (isBranched) {
+      const branches = [
+        ...new Set(sorted.filter(n => n.category === cat).map(branchOf)),
       ];
 
       const startX = cursor;
-      for (const sub of subcats) {
-        laneX[`${cat}::${sub}`] = cursor;
+      for (const branch of branches) {
+        laneX[`${cat}::${branch}`] = cursor;
         cursor += BRANCH_X_SPACING;
       }
       // Center the flag over all branches
-      categoryFlagX[cat] = startX + ((subcats.length - 1) * BRANCH_X_SPACING) / 2;
-      // Extra gap before the next category
+      categoryFlagX[cat] = startX + ((branches.length - 1) * BRANCH_X_SPACING) / 2;
       cursor += CATEGORY_X_SPACING - BRANCH_X_SPACING;
     } else {
       laneX[cat]         = cursor;
@@ -54,29 +64,19 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
     }
   }
 
-  // ── Brain nodes ──────────────────────────────────────────────────────────
-  // Build per-lane sorted index for equal spacing (sorted is already chronological)
+  // ── Brain nodes — equal vertical spacing per lane ────────────────────────
   const laneIndex = {};
 
   const brainNodes = sorted.map(item => {
-    const laneKey = splitCategories.has(item.category)
-      ? `${item.category}::${item.subcategory || 'General'}`
-      : item.category;
-
-    if (laneIndex[laneKey] === undefined) laneIndex[laneKey] = 0;
-    const idx = laneIndex[laneKey]++;
+    const key = laneKeyOf(item);
+    if (laneIndex[key] === undefined) laneIndex[key] = 0;
+    const idx = laneIndex[key]++;
 
     return {
       id: item.id,
       type: 'brainNode',
-      position: {
-        x: laneX[laneKey] ?? 0,
-        y: idx * NODE_Y_SPACING,
-      },
-      data: {
-        ...item,
-        color: getCategoryColor(item.category),
-      },
+      position: { x: laneX[key] ?? 0, y: idx * NODE_Y_SPACING },
+      data: { ...item, color: getCategoryColor(item.category) },
     };
   });
 
@@ -88,13 +88,10 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
     return {
       id: `flag-${cat}`,
       type: 'flagNode',
-      position: {
-        x: categoryFlagX[cat],
-        y: minY - FLAG_Y_OFFSET,
-      },
+      position: { x: categoryFlagX[cat], y: minY - FLAG_Y_OFFSET },
       data: { category: cat, color: getCategoryColor(cat) },
-      draggable: true,   // flags are movable
-      selectable: false, // but not selectable — clicking opens FlagMenu instead
+      draggable: true,
+      selectable: false,
     };
   });
 
@@ -107,35 +104,33 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
     const color    = getCategoryColor(cat);
     const catNodes = brainNodes.filter(n => n.data.category === cat);
 
-    if (splitCategories.has(cat)) {
-      // Group into subcategory branches
+    if (isBranched) {
+      // Group into branches, then chain within each branch
       const branchMap = {};
       for (const node of catNodes) {
-        const sub = node.data.subcategory || 'General';
-        if (!branchMap[sub]) branchMap[sub] = [];
-        branchMap[sub].push(node);
+        const branch = branchOf(node.data);
+        if (!branchMap[branch]) branchMap[branch] = [];
+        branchMap[branch].push(node);
       }
 
       for (const branchNodes of Object.values(branchMap)) {
-        const chronological = [...branchNodes].sort(
+        const chron = [...branchNodes].sort(
           (a, b) => new Date(a.data.datetime) - new Date(b.data.datetime),
         );
 
-        // Flag → first node of branch
         edges.push({
-          id: `edge-flag-${cat}-${chronological[0].id}`,
+          id: `edge-flag-${cat}-${chron[0].id}`,
           source: `flag-${cat}`,
-          target: chronological[0].id,
+          target: chron[0].id,
           type: 'default',
           style: { stroke: color, strokeWidth: 2 },
         });
 
-        // Chain within branch
-        for (let i = 0; i < chronological.length - 1; i++) {
+        for (let i = 0; i < chron.length - 1; i++) {
           edges.push({
-            id: `edge-${chronological[i].id}-${chronological[i + 1].id}`,
-            source: chronological[i].id,
-            target: chronological[i + 1].id,
+            id: `edge-${chron[i].id}-${chron[i + 1].id}`,
+            source: chron[i].id,
+            target: chron[i + 1].id,
             type: 'default',
             style: { stroke: color, strokeWidth: 2 },
           });
@@ -143,25 +138,23 @@ export function buildGraph(dataNodes, splitCategories = new Set()) {
       }
     } else {
       // Single chronological chain
-      const chronological = [...catNodes].sort(
+      const chron = [...catNodes].sort(
         (a, b) => new Date(a.data.datetime) - new Date(b.data.datetime),
       );
 
-      // Flag → first node
       edges.push({
         id: `edge-flag-${cat}`,
         source: `flag-${cat}`,
-        target: chronological[0].id,
+        target: chron[0].id,
         type: 'default',
         style: { stroke: color, strokeWidth: 2 },
       });
 
-      // Chain
-      for (let i = 0; i < chronological.length - 1; i++) {
+      for (let i = 0; i < chron.length - 1; i++) {
         edges.push({
-          id: `edge-${chronological[i].id}-${chronological[i + 1].id}`,
-          source: chronological[i].id,
-          target: chronological[i + 1].id,
+          id: `edge-${chron[i].id}-${chron[i + 1].id}`,
+          source: chron[i].id,
+          target: chron[i + 1].id,
           type: 'default',
           style: { stroke: color, strokeWidth: 2 },
         });

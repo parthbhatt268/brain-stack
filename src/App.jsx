@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -20,7 +20,6 @@ import BrainNode from './components/BrainNode/BrainNode';
 import FlagNode from './components/FlagNode/FlagNode';
 import Toolbar from './components/Toolbar/Toolbar';
 import Ribbon from './components/Ribbon/Ribbon';
-import SaveBar from './components/SaveBar/SaveBar';
 import NodeModal from './components/NodeModal/NodeModal';
 import FlagMenu from './components/FlagMenu/FlagMenu';
 import AddNodeModal from './components/AddNodeModal/AddNodeModal';
@@ -28,48 +27,45 @@ import './App.css';
 
 const nodeTypes = { brainNode: BrainNode, flagNode: FlagNode };
 
-// Categories that have subcategory data and can visually split
-const SPLITTABLE_CATEGORIES = new Set(
-  demoNodes.filter(n => n.subcategory != null).map(n => n.category),
-);
-
 function Flow() {
-  // Split mode: when ON, categories with subcategories branch into lanes
-  const [isSplitMode, setIsSplitMode] = useState(true); // AI starts split
-
-  const splitCategories = useMemo(
-    () => (isSplitMode ? SPLITTABLE_CATEGORIES : new Set()),
-    [isSplitMode],
-  );
+  // View mode drives the graph layout
+  const [viewMode, setViewMode] = useState('subcategory');
 
   const initialGraph = useMemo(
-    () => buildGraph(demoNodes, isSplitMode ? SPLITTABLE_CATEGORIES : new Set()),
-    [], // only runs once — toggle rebuild handled via handleToggleSplitMode
+    () => buildGraph(demoNodes, 'subcategory'),
+    [], // built once; subsequent changes are driven by handleSetViewMode
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
-  const [clipboard, setClipboard]         = useState([]);
-  const [mode, setMode]                   = useState('pan');
-  const [isDirty, setIsDirty]             = useState(false);
-  const [savedSnapshot, setSavedSnapshot] = useState({
-    nodes: initialGraph.nodes,
-    edges: initialGraph.edges,
-  });
+  const [clipboard, setClipboard] = useState([]);
+  const [mode, setMode]           = useState('pan');
 
   const [past, setPast]     = useState([]);
   const [future, setFuture] = useState([]);
   const canUndo = past.length > 0;
   const canRedo = future.length > 0;
 
-  const [activeNode, setActiveNode]   = useState(null);
-  const [flagMenu, setFlagMenu]       = useState(null); // { flag, position }
+  const [activeNode, setActiveNode]     = useState(null);
+  const [flagMenu, setFlagMenu]         = useState(null); // { flag, position, nodeCount }
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Auto-save indicator — shown briefly after each intentional change
+  const [savedVisible, setSavedVisible] = useState(false);
+  const savedTimerRef = useRef(null);
 
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   const selectedNodes = useMemo(() => nodes.filter(n => n.selected), [nodes]);
   const hasSelection  = selectedNodes.length > 0;
+
+  // ── Auto-save trigger ─────────────────────────────────────────────────────
+  // Called explicitly from each intentional action (not on every node drag).
+  const triggerAutoSave = useCallback(() => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    setSavedVisible(true);
+    savedTimerRef.current = setTimeout(() => setSavedVisible(false), 2500);
+  }, []);
 
   // ── History ───────────────────────────────────────────────────────────────
   const pushHistory = useCallback((currentNodes, currentEdges) => {
@@ -84,7 +80,8 @@ function Flow() {
     setPast(p => p.slice(0, -1));
     setNodes(prev.nodes);
     setEdges(prev.edges);
-  }, [past, nodes, edges, setNodes, setEdges]);
+    triggerAutoSave();
+  }, [past, nodes, edges, setNodes, setEdges, triggerAutoSave]);
 
   const redo = useCallback(() => {
     if (!future.length) return;
@@ -93,19 +90,19 @@ function Flow() {
     setFuture(f => f.slice(1));
     setNodes(next.nodes);
     setEdges(next.edges);
-  }, [future, nodes, edges, setNodes, setEdges]);
+    triggerAutoSave();
+  }, [future, nodes, edges, setNodes, setEdges, triggerAutoSave]);
 
-  // ── View toggle — Default ↔ Split ─────────────────────────────────────────
-  const handleToggleSplitMode = useCallback(() => {
+  // ── View mode change ──────────────────────────────────────────────────────
+  const handleSetViewMode = useCallback((newMode) => {
+    if (newMode === viewMode) return;
     pushHistory(nodes, edges);
-    const nextMode = !isSplitMode;
-    const nextSplit = nextMode ? SPLITTABLE_CATEGORIES : new Set();
-    const { nodes: newNodes, edges: newEdges } = buildGraph(demoNodes, nextSplit);
-    setIsSplitMode(nextMode);
+    const { nodes: newNodes, edges: newEdges } = buildGraph(demoNodes, newMode);
+    setViewMode(newMode);
     setNodes(newNodes);
     setEdges(newEdges);
-    setIsDirty(true);
-  }, [isSplitMode, nodes, edges, pushHistory, setNodes, setEdges]);
+    triggerAutoSave();
+  }, [viewMode, nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Edge connection — category inheritance ────────────────────────────────
   const onConnect = useCallback((connection) => {
@@ -118,7 +115,7 @@ function Flow() {
     const edgeStyle      = parentColor ? { stroke: parentColor, strokeWidth: 2 } : undefined;
 
     if (!parentCategory) {
-      setEdges(eds => addEdge({ ...connection, type: 'smoothstep' }, eds));
+      setEdges(eds => addEdge({ ...connection, type: 'default' }, eds));
       return;
     }
 
@@ -131,9 +128,9 @@ function Flow() {
     );
 
     setNodes(updatedNodes);
-    setEdges(eds => addEdge({ ...connection, type: 'smoothstep', style: edgeStyle }, eds));
-    setIsDirty(true);
-  }, [nodes, edges, pushHistory, setNodes, setEdges]);
+    setEdges(eds => addEdge({ ...connection, type: 'default', style: edgeStyle }, eds));
+    triggerAutoSave();
+  }, [nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Canvas actions ────────────────────────────────────────────────────────
   const handleSelectAll = useCallback(() => {
@@ -150,8 +147,8 @@ function Flow() {
     setEdges(eds =>
       eds.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target)),
     );
-    setIsDirty(true);
-  }, [nodes, edges, pushHistory, setNodes, setEdges]);
+    triggerAutoSave();
+  }, [nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   const handlePaste = useCallback(() => {
     if (!clipboard.length) return;
@@ -163,21 +160,8 @@ function Flow() {
       selected: false,
     }));
     setNodes(nds => [...nds, ...pasted]);
-    setIsDirty(true);
-  }, [clipboard, nodes, edges, pushHistory, setNodes]);
-
-  // ── Save / Discard ────────────────────────────────────────────────────────
-  const handleSave = useCallback(() => {
-    setSavedSnapshot({ nodes, edges });
-    setIsDirty(false);
-  }, [nodes, edges]);
-
-  const handleDiscard = useCallback(() => {
-    pushHistory(nodes, edges);
-    setNodes(savedSnapshot.nodes);
-    setEdges(savedSnapshot.edges);
-    setIsDirty(false);
-  }, [nodes, edges, savedSnapshot, pushHistory, setNodes, setEdges]);
+    triggerAutoSave();
+  }, [clipboard, nodes, edges, pushHistory, setNodes, triggerAutoSave]);
 
   // ── Add node via URL ──────────────────────────────────────────────────────
   const handleAddNode = useCallback(({ url, category, subcategory, source, summary, origin }) => {
@@ -185,10 +169,11 @@ function Flow() {
 
     const color = getCategoryColor(category);
 
-    // Find the last node in the target lane so we can chain below it
+    // Find the last node in the target lane to chain after it
     const laneNodes = nodes.filter(n => {
       if (n.type !== 'brainNode' || n.data.category !== category) return false;
-      if (isSplitMode && subcategory) return n.data.subcategory === subcategory;
+      if (viewMode === 'subcategory' && subcategory) return n.data.subcategory === subcategory;
+      if (viewMode === 'platform'    && source)      return n.data.source      === source;
       return true;
     });
 
@@ -218,10 +203,10 @@ function Flow() {
       },
     };
 
-    const sourceId = lastNode ? lastNode.id : `flag-${category}`;
+    const edgeSourceId = lastNode ? lastNode.id : `flag-${category}`;
     const newEdge = {
-      id: `edge-${sourceId}-${newId}`,
-      source: sourceId,
+      id: `edge-${edgeSourceId}-${newId}`,
+      source: edgeSourceId,
       target: newId,
       type: 'default',
       style: { stroke: color, strokeWidth: 2 },
@@ -229,8 +214,8 @@ function Flow() {
 
     setNodes(nds => [...nds, newNode]);
     setEdges(eds => [...eds, newEdge]);
-    setIsDirty(true);
-  }, [nodes, edges, isSplitMode, pushHistory, setNodes, setEdges]);
+    triggerAutoSave();
+  }, [nodes, edges, viewMode, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Node / flag clicks ────────────────────────────────────────────────────
   const handleNodeClick = useCallback((event, node) => {
@@ -252,10 +237,12 @@ function Flow() {
 
   return (
     <div className="flow-wrapper">
-      <Ribbon isSplitMode={isSplitMode} onToggleSplitMode={handleToggleSplitMode} />
+      <Ribbon savedVisible={savedVisible} />
       <Toolbar
         mode={mode}
         onModeChange={setMode}
+        viewMode={viewMode}
+        onViewModeChange={handleSetViewMode}
         hasSelection={hasSelection}
         hasClipboard={clipboard.length > 0}
         onZoomIn={() => zoomIn({ duration: 350 })}
@@ -300,11 +287,8 @@ function Flow() {
         />
       </ReactFlow>
 
-      <SaveBar isDirty={isDirty} onSave={handleSave} onDiscard={handleDiscard} />
-
-      {/* Add-node FAB — lifts above SaveBar when SaveBar is visible */}
       <button
-        className={`add-node-fab${isDirty ? ' add-node-fab--lifted' : ''}`}
+        className="add-node-fab"
         onClick={() => setShowAddModal(true)}
         title="Add a link to your Brain Stack"
         aria-label="Add a link to your Brain Stack"
