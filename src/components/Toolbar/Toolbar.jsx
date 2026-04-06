@@ -5,6 +5,7 @@ import {
   Scissors, ClipboardPaste,
   Undo2, Redo2,
   Clock, Layers, LayoutGrid,
+  SlidersHorizontal, ChevronLeft,
 } from 'lucide-react';
 import './Toolbar.css';
 
@@ -36,9 +37,9 @@ function ToolBtn({ icon: Icon, onClick, active, disabled, danger, small, label, 
     <button
       className={[
         'toolbar__btn',
-        active    ? 'toolbar__btn--active'   : '',
-        disabled  ? 'toolbar__btn--disabled' : '',
-        danger    ? 'toolbar__btn--danger'   : '',
+        active    ? 'toolbar__btn--active'      : '',
+        disabled  ? 'toolbar__btn--disabled'    : '',
+        danger    ? 'toolbar__btn--danger'      : '',
         small     ? 'toolbar__btn--small-label' : '',
       ].filter(Boolean).join(' ')}
       onClick={disabled ? undefined : onClick}
@@ -84,9 +85,7 @@ function ViewPicker({ viewMode, onViewModeChange, onClose }) {
             <span className="view-picker__option-name">{label}</span>
             <span className="view-picker__option-desc">{description}</span>
           </span>
-          {viewMode === id && (
-            <span className="view-picker__check">✓</span>
-          )}
+          {viewMode === id && <span className="view-picker__check">✓</span>}
         </button>
       ))}
     </div>
@@ -112,18 +111,39 @@ export default function Toolbar({
   onUndo,
   onRedo,
 }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const viewBtnRef = useRef(null);
+  const [pickerOpen, setPickerOpen]     = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(true); // open by default on mobile
 
   const currentMode = VIEW_MODES.find(m => m.id === viewMode) ?? VIEW_MODES[0];
-  const ViewIcon = currentMode.icon;
+  const ViewIcon    = currentMode.icon;
+
+  function handleTabClick(e) {
+    e.stopPropagation();
+    if (!isMobileOpen) {
+      setIsMobileOpen(true);
+    } else {
+      setIsMobileOpen(false);
+      setPickerOpen(false);
+    }
+  }
+
+  function handleToolbarInteract() {} // no-op — kept for onClick wiring
 
   return (
-    <div className="toolbar">
+    <div className={`toolbar${isMobileOpen ? ' toolbar--mobile-open' : ''}`}>
+      {/* ── Mobile bookmark tab — always visible on mobile, hidden on desktop ── */}
+      <button
+        className={`toolbar__mobile-tab${isMobileOpen ? ' toolbar__mobile-tab--open' : ''}`}
+        onClick={handleTabClick}
+        title={isMobileOpen ? 'Close toolbar' : 'Open toolbar'}
+        aria-label={isMobileOpen ? 'Close toolbar' : 'Open toolbar'}
+      >
+        {isMobileOpen ? <ChevronLeft size={15} /> : <SlidersHorizontal size={15} />}
+      </button>
+
       {/* View mode picker */}
       <div className="toolbar__group" style={{ position: 'relative' }}>
         <button
-          ref={viewBtnRef}
           className={`toolbar__btn${pickerOpen ? ' toolbar__btn--active' : ''}`}
           onClick={() => setPickerOpen(o => !o)}
           title={`Layout: ${currentMode.label}`}

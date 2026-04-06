@@ -75,15 +75,7 @@
 
 @media (max-width: 480px) {
   .add-node-fab {
-    bottom: 20px;
+    bottom: 24px; /* align with search bar */
     right: 16px;
-  }
-}
-
-/* ── Responsive ──────────────────────────────────────────────────────────── */
-@media (max-width: 480px) {
-  .toolbar {
-    top: 56px;
-    left: 8px;
   }
 }

@@ -149,20 +149,20 @@
   to   { opacity: 0.8; transform: translateX(-50%) translateY(0); }
 }
 
-/* ── Mobile ──────────────────────────────────────────────────────────────── */
+/* ── Mobile: sit side-by-side with the FAB ───────────────────────────────── */
 @media (max-width: 480px) {
   .search-bar {
-    bottom: 88px; /* sit above the FAB which is at 20px + 52px */
-    width: calc(100vw - 32px);
+    /* Use left+right instead of a fixed width so the bar fills the gap left
+       of the FAB: 16px (FAB margin) + 52px (FAB) + 12px (gap) = 80px */
+    bottom: 24px;
     left: 16px;
+    right: 80px;
+    width: auto;
     transform: none;
   }
 
   .search-bar__not-found {
     white-space: normal;
-    width: 100%;
-    left: 0;
-    transform: none;
-    text-align: center;
+    max-width: 100%;
   }
 }
