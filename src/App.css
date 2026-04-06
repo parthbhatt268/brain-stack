@@ -23,14 +23,14 @@
   border: 1px solid var(--accent) !important;
 }
 
-/* ── Dimming: when any node is selected, fade out the rest ───────────────── */
+/* ── Dimming: when nodes are selected, fade out the rest ─────────────────── */
 .flow--has-selection .react-flow__node {
   transition: opacity 0.2s, filter 0.2s;
 }
 
 .flow--has-selection .react-flow__node:not(.selected) {
-  opacity: 0.25;
-  filter: saturate(0.15);
+  opacity: 0.2;
+  filter: saturate(0.1);
 }
 
 .flow--has-selection .react-flow__node.selected {
@@ -38,7 +38,13 @@
   filter: none;
 }
 
-/* ── Responsive: shrink toolbar on small screens ─────────────────────────── */
+/* Flag nodes are never dimmed */
+.flow--has-selection .react-flow__node-flagNode {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .toolbar {
     top: 56px;

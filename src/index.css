@@ -6,6 +6,8 @@
   --bg: #fafafa;
   --dot-color: #b8b8c0;
   --node-bg: #ffffff;
+  --node-border: #1a1a1a;
+  --edge-color: #1a1a1a;
   --handle-bg: #94a3b8;
   --tooltip-bg: #ffffff;
   --tooltip-text: #1e293b;
@@ -23,6 +25,8 @@
   --bg: #0f172a;
   --dot-color: #2e4060;
   --node-bg: #1e293b;
+  --node-border: #e5e5e5;
+  --edge-color: #e5e5e5;
   --handle-bg: #475569;
   --tooltip-bg: #1e293b;
   --tooltip-text: #e2e8f0;

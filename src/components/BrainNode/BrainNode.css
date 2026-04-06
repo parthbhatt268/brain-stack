@@ -2,80 +2,59 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  border: 3px solid;
+  border: 2.5px solid var(--node-border);
   background: var(--node-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
   position: relative;
 }
 
 .brain-node:hover {
   transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
 .brain-node--selected {
   transform: scale(1.05);
+  box-shadow: 0 0 0 3px var(--accent), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .brain-node__icon {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--toolbar-text);
 }
 
 .brain-node__badge {
   position: absolute;
-  bottom: -10px;
+  bottom: -12px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 6px;
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
+/* Handles — shown on hover */
 .brain-node__handle {
-  width: 6px !important;
-  height: 6px !important;
-  background: var(--handle-bg) !important;
-  border: none !important;
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--node-border) !important;
+  border: 2px solid var(--node-bg) !important;
+  border-radius: 50% !important;
   opacity: 0;
+  transition: opacity 0.15s;
 }
 
 .brain-node:hover .brain-node__handle {
   opacity: 1;
-}
-
-/* Tooltip on hover */
-.brain-node__tooltip {
-  display: none;
-  position: absolute;
-  top: 74px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 220px;
-  background: var(--tooltip-bg);
-  color: var(--tooltip-text);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
-  line-height: 1.4;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  z-index: 100;
-  pointer-events: none;
-}
-
-.brain-node:hover .brain-node__tooltip {
-  display: block;
-}
-
-.brain-node__summary {
-  margin: 0;
 }

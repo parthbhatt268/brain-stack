@@ -25,6 +25,7 @@ export default function Toolbar({
   mode,
   onModeChange,
   hasSelection,
+  hasClipboard,
   onZoomIn,
   onZoomOut,
   onSelectAll,
@@ -73,8 +74,8 @@ export default function Toolbar({
         <ToolBtn
           icon={ClipboardPaste}
           onClick={onPaste}
-          disabled={!hasSelection}
-          title={hasSelection ? 'Paste nodes' : 'Select a node first'}
+          disabled={!hasClipboard}
+          title={hasClipboard ? 'Paste nodes' : 'Cut something first'}
         />
       </div>
 

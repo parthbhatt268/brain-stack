@@ -26,6 +26,62 @@
   letter-spacing: -0.3px;
 }
 
+.ribbon__center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ===== View toggle (Default / Split) ===== */
+.view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-toggle__option {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--toolbar-text);
+  opacity: 0.35;
+  transition: opacity 0.18s;
+  user-select: none;
+}
+
+.view-toggle__option--active {
+  opacity: 1;
+}
+
+.view-toggle__track {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--toolbar-btn-hover);
+  border: 1px solid var(--toolbar-border);
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.view-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: block;
+}
+
 .ribbon__right {
   display: flex;
   align-items: center;
