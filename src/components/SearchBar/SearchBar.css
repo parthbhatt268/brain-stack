@@ -1,0 +1,168 @@
+/* ── Floating bar ────────────────────────────────────────────────────────── */
+.search-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+
+  display: flex;
+  align-items: center;
+
+  width: min(500px, calc(100vw - 100px)); /* leave room for FAB on the right */
+  height: 46px;
+
+  background: var(--toolbar-bg);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
+
+  overflow: visible; /* needed so the not-found toast can pop above */
+}
+
+/* ── Category select ─────────────────────────────────────────────────────── */
+.search-bar__category {
+  flex-shrink: 0;
+  appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--toolbar-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 0 8px 0 14px;
+  height: 100%;
+  min-width: 64px;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+/* ── Vertical divider ────────────────────────────────────────────────────── */
+.search-bar__divider {
+  display: block;
+  width: 1px;
+  height: 18px;
+  background: var(--toolbar-border);
+  flex-shrink: 0;
+}
+
+/* ── Text input ──────────────────────────────────────────────────────────── */
+.search-bar__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--toolbar-text);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 0 6px 0 12px;
+  height: 100%;
+  min-width: 0;
+}
+
+.search-bar__input::placeholder {
+  color: var(--toolbar-text);
+  opacity: 0.35;
+}
+
+/* ── Shared icon-button base ─────────────────────────────────────────────── */
+.search-bar__icon-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+
+/* ── Clear button ────────────────────────────────────────────────────────── */
+.search-bar__clear {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--toolbar-btn-hover);
+  color: var(--toolbar-text);
+  opacity: 0.55;
+  margin-right: 4px;
+}
+
+.search-bar__clear:hover { opacity: 1; }
+
+/* ── Submit button ───────────────────────────────────────────────────────── */
+.search-bar__submit {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #1a1000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  transition: filter 0.15s, transform 0.1s;
+}
+
+.search-bar__submit:hover:not(:disabled) { filter: brightness(1.1); }
+.search-bar__submit:active:not(:disabled) { transform: scale(0.95); }
+.search-bar__submit:disabled { opacity: 0.35; cursor: not-allowed; }
+.search-bar__submit--loading { cursor: wait; }
+
+.search-bar__spinner {
+  animation: search-spin 0.7s linear infinite;
+}
+
+@keyframes search-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Not-found toast (floats above the bar) ──────────────────────────────── */
+.search-bar__not-found {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+
+  background: var(--toolbar-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--toolbar-text);
+  opacity: 0.8;
+  pointer-events: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  animation: not-found-pop 0.16s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes not-found-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 0.8; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .search-bar {
+    bottom: 88px; /* sit above the FAB which is at 20px + 52px */
+    width: calc(100vw - 32px);
+    left: 16px;
+    transform: none;
+  }
+
+  .search-bar__not-found {
+    white-space: normal;
+    width: 100%;
+    left: 0;
+    transform: none;
+    text-align: center;
+  }
+}

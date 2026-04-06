@@ -3,12 +3,16 @@ import SourceIcon from '../SourceIcon/SourceIcon';
 import './BrainNode.css';
 
 export default function BrainNode({ data, selected }) {
-  const { source, color, category } = data;
+  const { source, color, category, highlighted } = data;
 
   return (
     <div
-      className={`brain-node ${selected ? 'brain-node--selected' : ''}`}
-      style={{ borderColor: color }}
+      className={[
+        'brain-node',
+        selected    ? 'brain-node--selected'    : '',
+        highlighted ? 'brain-node--highlighted' : '',
+      ].filter(Boolean).join(' ')}
+      style={{ borderColor: color, '--node-color': color }}
     >
       <Handle type="target" position={Position.Top} className="brain-node__handle" />
 

@@ -22,6 +22,27 @@
   box-shadow: 0 0 0 3px var(--accent), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
+/* Search result highlight — pulsing glow in the node's own category colour */
+.brain-node--highlighted {
+  transform: scale(1.1);
+  animation: node-highlight-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes node-highlight-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px var(--node-bg),
+      0 0 0 6px var(--node-color, var(--accent)),
+      0 0 18px var(--node-color, var(--accent));
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px var(--node-bg),
+      0 0 0 10px var(--node-color, var(--accent)),
+      0 0 32px var(--node-color, var(--accent));
+  }
+}
+
 .brain-node__icon {
   display: flex;
   align-items: center;

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -23,18 +23,51 @@ import Ribbon from './components/Ribbon/Ribbon';
 import NodeModal from './components/NodeModal/NodeModal';
 import FlagMenu from './components/FlagMenu/FlagMenu';
 import AddNodeModal from './components/AddNodeModal/AddNodeModal';
+import SearchBar from './components/SearchBar/SearchBar';
+import { searchNodes } from './utils/searchNodes';
 import './App.css';
 
 const nodeTypes = { brainNode: BrainNode, flagNode: FlagNode };
+
+// ── Position persistence (localStorage) ──────────────────────────────────────
+const POSITIONS_KEY = 'brain-stack-positions';
+
+function loadSavedPositions(viewMode) {
+  try {
+    const all = JSON.parse(localStorage.getItem(POSITIONS_KEY) || '{}');
+    return all[viewMode] || {};
+  } catch {
+    return {};
+  }
+}
+
+function savePositionsForMode(viewMode, nodes) {
+  try {
+    const all = JSON.parse(localStorage.getItem(POSITIONS_KEY) || '{}');
+    all[viewMode] = {};
+    for (const node of nodes) {
+      all[viewMode][node.id] = node.position;
+    }
+    localStorage.setItem(POSITIONS_KEY, JSON.stringify(all));
+  } catch {
+    // localStorage unavailable (private browsing, quota exceeded) — silently skip
+  }
+}
+
+function applyPositions(nodes, savedPositions) {
+  if (!Object.keys(savedPositions).length) return nodes;
+  return nodes.map(n => savedPositions[n.id] ? { ...n, position: savedPositions[n.id] } : n);
+}
 
 function Flow() {
   // View mode drives the graph layout
   const [viewMode, setViewMode] = useState('subcategory');
 
-  const initialGraph = useMemo(
-    () => buildGraph(demoNodes, 'subcategory'),
-    [], // built once; subsequent changes are driven by handleSetViewMode
-  );
+  const initialGraph = useMemo(() => {
+    const graph = buildGraph(demoNodes, 'subcategory');
+    graph.nodes = applyPositions(graph.nodes, loadSavedPositions('subcategory'));
+    return graph;
+  }, []); // built once; subsequent changes are driven by handleSetViewMode
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
@@ -54,10 +87,40 @@ function Flow() {
   const [savedVisible, setSavedVisible] = useState(false);
   const savedTimerRef = useRef(null);
 
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, setCenter } = useReactFlow();
+
+  // Auto-fit after view mode changes (skip the initial mount)
+  const hasMounted = useRef(false);
+  useEffect(() => {
+    if (!hasMounted.current) { hasMounted.current = true; return; }
+    fitView({ duration: 600, padding: 0.4 });
+  }, [viewMode]); // fitView is stable — intentionally omitted from deps
 
   const selectedNodes = useMemo(() => nodes.filter(n => n.selected), [nodes]);
   const hasSelection  = selectedNodes.length > 0;
+
+  // ── Search state ──────────────────────────────────────────────────────────
+  const [highlightedNodeId, setHighlightedNodeId] = useState(null);
+  const [searchNotFound, setSearchNotFound]       = useState(false);
+  const [isSearching, setIsSearching]             = useState(false);
+  const highlightTimerRef = useRef(null);
+  const notFoundTimerRef  = useRef(null);
+
+  // Unique categories for the SearchBar filter dropdown
+  const categories = useMemo(
+    () => [...new Set(nodes.filter(n => n.type === 'brainNode').map(n => n.data.category))],
+    [nodes],
+  );
+
+  // Display nodes — adds transient `highlighted` flag without mutating nodes state
+  const displayNodes = useMemo(
+    () => highlightedNodeId
+      ? nodes.map(n => n.id === highlightedNodeId
+          ? { ...n, data: { ...n.data, highlighted: true } }
+          : n)
+      : nodes,
+    [nodes, highlightedNodeId],
+  );
 
   // ── Auto-save trigger ─────────────────────────────────────────────────────
   // Called explicitly from each intentional action (not on every node drag).
@@ -99,7 +162,7 @@ function Flow() {
     pushHistory(nodes, edges);
     const { nodes: newNodes, edges: newEdges } = buildGraph(demoNodes, newMode);
     setViewMode(newMode);
-    setNodes(newNodes);
+    setNodes(applyPositions(newNodes, loadSavedPositions(newMode)));
     setEdges(newEdges);
     triggerAutoSave();
   }, [viewMode, nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
@@ -217,6 +280,46 @@ function Flow() {
     triggerAutoSave();
   }, [nodes, edges, viewMode, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
+  // ── Search ────────────────────────────────────────────────────────────────
+  const handleSearch = useCallback(async (query, categoryFilter) => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    if (notFoundTimerRef.current)  clearTimeout(notFoundTimerRef.current);
+    setHighlightedNodeId(null);
+    setSearchNotFound(false);
+    setIsSearching(true);
+
+    try {
+      const result = await searchNodes(query, nodes, categoryFilter);
+
+      if (!result) {
+        setSearchNotFound(true);
+        notFoundTimerRef.current = setTimeout(() => setSearchNotFound(false), 3500);
+        return;
+      }
+
+      setHighlightedNodeId(result.id);
+      // Pan + zoom to the matched node (BrainNode is 64×64 px, centre offset = 32)
+      setCenter(result.position.x + 32, result.position.y + 32, { zoom: 2, duration: 650 });
+      // Auto-clear highlight after 5 seconds
+      highlightTimerRef.current = setTimeout(() => setHighlightedNodeId(null), 5000);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [nodes, setCenter]);
+
+  const handleClearSearch = useCallback(() => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    if (notFoundTimerRef.current)  clearTimeout(notFoundTimerRef.current);
+    setHighlightedNodeId(null);
+    setSearchNotFound(false);
+  }, []);
+
+  // ── Node drag stop — persist positions ───────────────────────────────────
+  const handleNodeDragStop = useCallback((_event, _node, allNodes) => {
+    savePositionsForMode(viewMode, allNodes);
+    triggerAutoSave();
+  }, [viewMode, triggerAutoSave]);
+
   // ── Node / flag clicks ────────────────────────────────────────────────────
   const handleNodeClick = useCallback((event, node) => {
     if (node.type === 'flagNode') {
@@ -257,13 +360,14 @@ function Flow() {
         onRedo={redo}
       />
       <ReactFlow
-        nodes={nodes}
+        nodes={displayNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
+        onNodeDragStop={handleNodeDragStop}
         fitView
         fitViewOptions={{ padding: 0.4 }}
         panOnDrag={isPan}
@@ -286,6 +390,14 @@ function Flow() {
           color="var(--dot-color)"
         />
       </ReactFlow>
+
+      <SearchBar
+        categories={categories}
+        onSearch={handleSearch}
+        onClear={handleClearSearch}
+        notFound={searchNotFound}
+        isSearching={isSearching}
+      />
 
       <button
         className="add-node-fab"
