@@ -18,12 +18,23 @@ function LinkedInIcon({ size }) {
 const SIZE = 24;
 
 // Official Simple Icons brand hex colors
+// needsWhiteBg: true for icons whose brand color is black/near-black
 const SI_ICONS = {
-  github:    { Icon: SiGithub,    color: '#181717' },
+  github:    { Icon: SiGithub,    color: '#181717', needsWhiteBg: true },
   youtube:   { Icon: SiYoutube,   color: '#FF0000' },
   instagram: { Icon: SiInstagram, color: '#E4405F' },
-  tiktok:    { Icon: SiTiktok,    color: '#000000' },
+  tiktok:    { Icon: SiTiktok,    color: '#000000', needsWhiteBg: true },
   reddit:    { Icon: SiReddit,    color: '#FF4500' },
+};
+
+const WHITE_CIRCLE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#ffffff',
+  borderRadius: '50%',
+  padding: '3px',
+  lineHeight: 0,
 };
 
 export function detectSource(url) {
@@ -42,7 +53,10 @@ export default function SourceIcon({ source }) {
   const brand = SI_ICONS[source];
 
   if (brand) {
-    return <brand.Icon size={SIZE} color={brand.color} />;
+    const icon = <brand.Icon size={SIZE} color={brand.color} />;
+    return brand.needsWhiteBg
+      ? <span style={WHITE_CIRCLE}>{icon}</span>
+      : icon;
   }
 
   if (source === 'linkedin') {

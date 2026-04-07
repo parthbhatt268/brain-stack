@@ -19,18 +19,20 @@ The frontend sends the URL; the backend scrapes/fetches it, classifies it,
 and returns enriched metadata to create a new graph node.
 
 **Request**
+
 ```json
 { "url": "https://example.com/some-article" }
 ```
 
 **Response**
+
 ```json
 {
-  "category":    "ai",
+  "category": "ai",
   "subcategory": "LLM & Prompting",
-  "source":      "youtube",
-  "summary":     "~50-word human-readable summary of the content",
-  "origin":      "added"
+  "source": "youtube",
+  "summary": "~50-word human-readable summary of the content",
+  "origin": "added"
 }
 ```
 
@@ -40,6 +42,7 @@ and returns enriched metadata to create a new graph node.
 
 **Security — SSRF prevention (critical):**
 The backend must validate the URL before fetching it:
+
 - Allow only `https:` protocol
 - Resolve the hostname to an IP **before** fetching, then reject private/loopback ranges:
   `127.x`, `10.x`, `192.168.x`, `172.16–31.x`, `169.254.x` (AWS metadata), `::1`, `fc00::/7`
@@ -55,25 +58,51 @@ is trivially bypassed — backend validation is the real gate.
 ### `POST /api/search`
 
 Triggered when the user types a question into the search bar and hits Enter.
-The frontend sends the query and the relevant nodes; the backend uses an LLM
-to find the best match and returns its ID.
+The frontend sends the query; the backend uses **semantic vector search** to find
+the best match and returns its ID.
 
-**Why LLM stuffing, not RAG:**
-A personal knowledge graph typically has fewer than a few hundred nodes. All
-summaries fit comfortably in one LLM context window — no vector DB or embedding
-infrastructure needed. Just stuff them into a prompt and ask.
+**Embedding approach — Voyage AI `voyage-4-nano`:**
+We use incremental embedding with a flat vector store (no vector DB needed).
+
+- **Model:** `voyage-4-nano` — free, open-weight (Apache 2.0), Anthropic's
+  officially recommended embedding provider.
+- **Why free:** Voyage AI offers 200M free tokens per account for their models,
+  and `voyage-4-nano` is free indefinitely. Google Cloud's $300 trial credit
+  explicitly excludes the Gemini API (confirmed broken in 2026), so Gemini
+  embeddings are not an option without a separate billing account.
+- **How it works:**
+  1. When a node is added, call `POST https://api.voyageai.com/v1/embeddings`
+     with the node's summary. Store the returned vector (1024 floats) alongside
+     the node record.
+  2. At search time, embed the user's query (one API call), then compute cosine
+     similarity in memory against all stored vectors. Return the top match.
+- **Scale:** 10,000 nodes ≈ 40 MB RAM, ~5 ms scan on CPU — no infrastructure
+  needed until hundreds of thousands of nodes.
+- **API key:** Sign up at https://www.voyageai.com no credit card required.
+  Set as `VOYAGE_API_KEY` environment variable on the backend.
+
+**Current stub (frontend):**
+The frontend still sends the full `nodes` payload (summaries included) as a
+fallback for the demo. Once the backend has stored vectors, replace `nodes` with
+`nodeIds` only and look up records server-side.
+
+**Why not LLM stuffing:**
+At ~65 tokens per summary, 1,000 nodes = 65,000 tokens per search request.
+At scale this is expensive and slow. Embeddings cost fractions of a cent total
+for the entire lifetime of the app and return results in milliseconds.
 
 **Request**
+
 ```json
 {
   "query": "what was that video about soil temperature?",
   "nodes": [
     {
-      "id":          "node-3",
-      "summary":     "Video explaining optimal soil temperature for tomatoes...",
-      "url":         "https://youtube.com/watch?v=abc123",
-      "source":      "youtube",
-      "category":    "gardening",
+      "id": "node-3",
+      "summary": "Video explaining optimal soil temperature for tomatoes...",
+      "url": "https://youtube.com/watch?v=abc123",
+      "source": "youtube",
+      "category": "gardening",
       "subcategory": null
     }
   ]
@@ -88,11 +117,13 @@ When the backend has its own persistent DB, you can replace `nodes` with
 to send IDs only.
 
 **Response — match found**
+
 ```json
 { "nodeId": "node-3" }
 ```
 
 **Response — no match**
+
 ```json
 { "nodeId": null }
 ```
@@ -108,6 +139,7 @@ Currently the graph is loaded from a hardcoded `demoData.js` file and saved
 only to `localStorage` (positions) or not at all (node additions/deletions).
 
 **On app load — replace `demoData` import:**
+
 ```
 GET /api/graph
 → { nodes: [...], positions: { subcategory: {...}, platform: {...}, timeline: {...} } }
@@ -117,12 +149,14 @@ GET /api/graph
 `positions` is the per-view-mode position map (see §5 below).
 
 **On auto-save (debounced, ~2 s after last change):**
+
 ```
 POST /api/graph
 { nodes: [...], edges: [...] }
 ```
 
 **On node position drag-stop:**
+
 ```
 PATCH /api/graph/positions
 { viewMode: "subcategory", positions: { "node-1": { "x": 120, "y": 340 }, ... } }
