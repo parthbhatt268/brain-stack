@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   ZoomIn, ZoomOut, Maximize2,
-  MousePointerClick, Hand,
   Scissors, ClipboardPaste,
   Undo2, Redo2,
   Clock, Layers, LayoutGrid,
@@ -94,8 +93,6 @@ function ViewPicker({ viewMode, onViewModeChange, onClose }) {
 
 // ── Main Toolbar ──────────────────────────────────────────────────────────────
 export default function Toolbar({
-  mode,
-  onModeChange,
   viewMode,
   onViewModeChange,
   hasSelection,
@@ -103,7 +100,6 @@ export default function Toolbar({
   onZoomIn,
   onZoomOut,
   onFitView,
-  onSelectAll,
   onDelete,
   onPaste,
   canUndo,
@@ -161,14 +157,6 @@ export default function Toolbar({
 
       <div className="toolbar__divider" />
 
-      {/* Pan / Select toggle */}
-      <div className="toolbar__group">
-        <ToolBtn icon={Hand} active={mode === 'pan'} onClick={() => onModeChange('pan')} title="Pan — drag to move canvas" />
-        <ToolBtn icon={MousePointerClick} active={mode === 'select'} onClick={() => onModeChange('select')} title="Select — drag to select nodes" />
-      </div>
-
-      <div className="toolbar__divider" />
-
       {/* Zoom */}
       <div className="toolbar__group">
         <ToolBtn icon={ZoomIn} onClick={onZoomIn} title="Zoom in" />
@@ -203,12 +191,6 @@ export default function Toolbar({
         />
       </div>
 
-      <div className="toolbar__divider" />
-
-      {/* Select all */}
-      <div className="toolbar__group">
-        <ToolBtn icon={MousePointerClick} onClick={onSelectAll} small label="All" title="Select all nodes" />
-      </div>
     </div>
   );
 }

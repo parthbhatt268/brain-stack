@@ -11,7 +11,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { Plus } from 'lucide-react';
+import { Plus, X, Link2, Flag } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
@@ -23,8 +23,10 @@ import Ribbon from './components/Ribbon/Ribbon';
 import NodeModal from './components/NodeModal/NodeModal';
 import FlagMenu from './components/FlagMenu/FlagMenu';
 import AddNodeModal from './components/AddNodeModal/AddNodeModal';
+import AddCategoryModal from './components/AddCategoryModal/AddCategoryModal';
 import SearchBar from './components/SearchBar/SearchBar';
 import { searchNodes } from './utils/searchNodes';
+import { setCategoryColor } from './utils/categoryColors';
 import './App.css';
 
 const nodeTypes = { brainNode: BrainNode, flagNode: FlagNode };
@@ -72,7 +74,6 @@ function Flow() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
   const [clipboard, setClipboard] = useState([]);
-  const [mode, setMode]           = useState('pan');
 
   const [past, setPast]     = useState([]);
   const [future, setFuture] = useState([]);
@@ -81,7 +82,9 @@ function Flow() {
 
   const [activeNode, setActiveNode]     = useState(null);
   const [flagMenu, setFlagMenu]         = useState(null); // { flag, position, nodeCount }
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal]         = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [fabOpen, setFabOpen]                     = useState(false);
 
   // Auto-save indicator — shown briefly after each intentional change
   const [savedVisible, setSavedVisible] = useState(false);
@@ -96,8 +99,7 @@ function Flow() {
     fitView({ duration: 600, padding: 0.4 });
   }, [viewMode]); // fitView is stable — intentionally omitted from deps
 
-  const selectedNodes = useMemo(() => nodes.filter(n => n.selected), [nodes]);
-  const hasSelection  = selectedNodes.length > 0;
+  const hasSelection = useMemo(() => nodes.some(n => n.selected), [nodes]);
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [highlightedNodeId, setHighlightedNodeId] = useState(null);
@@ -107,8 +109,9 @@ function Flow() {
   const notFoundTimerRef  = useRef(null);
 
   // Unique categories for the SearchBar filter dropdown
+  // All category names — includes flag-only categories with no brain nodes yet
   const categories = useMemo(
-    () => [...new Set(nodes.filter(n => n.type === 'brainNode').map(n => n.data.category))],
+    () => [...new Set(nodes.filter(n => n.data?.category).map(n => n.data.category))],
     [nodes],
   );
 
@@ -196,12 +199,6 @@ function Flow() {
   }, [nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Canvas actions ────────────────────────────────────────────────────────
-  const handleSelectAll = useCallback(() => {
-    setNodes(nds => nds.map(n =>
-      n.type === 'flagNode' ? n : { ...n, selected: true },
-    ));
-  }, [setNodes]);
-
   const handleDelete = useCallback(() => {
     pushHistory(nodes, edges);
     const selectedIds = new Set(nodes.filter(n => n.selected).map(n => n.id));
@@ -225,6 +222,15 @@ function Flow() {
     setNodes(nds => [...nds, ...pasted]);
     triggerAutoSave();
   }, [clipboard, nodes, edges, pushHistory, setNodes, triggerAutoSave]);
+
+  // ── Delete single node from modal ────────────────────────────────────────
+  const handleDeleteNode = useCallback((nodeId) => {
+    pushHistory(nodes, edges);
+    setNodes(nds => nds.filter(n => n.id !== nodeId));
+    setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+    setActiveNode(null);
+    triggerAutoSave();
+  }, [nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Add node via URL ──────────────────────────────────────────────────────
   const handleAddNode = useCallback(({ url, category, subcategory, source, summary, origin }) => {
@@ -279,6 +285,29 @@ function Flow() {
     setEdges(eds => [...eds, newEdge]);
     triggerAutoSave();
   }, [nodes, edges, viewMode, pushHistory, setNodes, setEdges, triggerAutoSave]);
+
+  // ── Add category (flag-only, no nodes yet) ───────────────────────────────
+  const handleAddCategory = useCallback(({ name, color }) => {
+    pushHistory(nodes, edges);
+    setCategoryColor(name, color);
+
+    const flagNodes  = nodes.filter(n => n.type === 'flagNode');
+    const rightmostX = flagNodes.length
+      ? Math.max(...flagNodes.map(n => n.position.x))
+      : -220; // becomes 0 after + spacing
+
+    const newFlag = {
+      id: `flag-${name}`,
+      type: 'flagNode',
+      position: { x: rightmostX + 220, y: -160 },
+      data: { category: name, color },
+      draggable: true,
+      selectable: false,
+    };
+
+    setNodes(nds => [...nds, newFlag]);
+    triggerAutoSave();
+  }, [nodes, edges, pushHistory, setNodes, triggerAutoSave]);
 
   // ── Search ────────────────────────────────────────────────────────────────
   const handleSearch = useCallback(async (query, categoryFilter) => {
@@ -336,14 +365,10 @@ function Flow() {
     setActiveNode(node);
   }, [nodes]);
 
-  const isPan = mode === 'pan';
-
   return (
     <div className="flow-wrapper">
       <Ribbon savedVisible={savedVisible} />
       <Toolbar
-        mode={mode}
-        onModeChange={setMode}
         viewMode={viewMode}
         onViewModeChange={handleSetViewMode}
         hasSelection={hasSelection}
@@ -351,7 +376,6 @@ function Flow() {
         onZoomIn={() => zoomIn({ duration: 350 })}
         onZoomOut={() => zoomOut({ duration: 350 })}
         onFitView={() => fitView({ duration: 500, padding: 0.4 })}
-        onSelectAll={handleSelectAll}
         onDelete={handleDelete}
         onPaste={handlePaste}
         canUndo={canUndo}
@@ -370,16 +394,13 @@ function Flow() {
         onNodeDragStop={handleNodeDragStop}
         fitView
         fitViewOptions={{ padding: 0.4 }}
-        panOnDrag={isPan}
-        selectionOnDrag={!isPan}
-        selectNodesOnDrag={!isPan}
-        selectionMode="partial"
+        panOnDrag
         minZoom={0.2}
         maxZoom={4}
         deleteKeyCode="Delete"
         defaultEdgeOptions={{ type: 'default' }}
         className={[
-          isPan ? 'flow--pan-mode' : 'flow--select-mode',
+          'flow--pan-mode',
           hasSelection ? 'flow--has-selection' : '',
         ].join(' ')}
       >
@@ -399,14 +420,41 @@ function Flow() {
         isSearching={isSearching}
       />
 
-      <button
-        className="add-node-fab"
-        onClick={() => setShowAddModal(true)}
-        title="Add a link to your Brain Stack"
-        aria-label="Add a link to your Brain Stack"
-      >
-        <Plus size={24} />
-      </button>
+      {/* Dismiss overlay — closes speed dial when clicking outside */}
+      {fabOpen && (
+        <div className="fab-dismiss" onClick={() => setFabOpen(false)} aria-hidden="true" />
+      )}
+
+      {/* ── Speed-dial FAB ── */}
+      <div className={`fab-wrap${fabOpen ? ' fab-wrap--open' : ''}`}>
+        {fabOpen && (
+          <>
+            <button
+              className="fab-item"
+              onClick={() => { setFabOpen(false); setShowCategoryModal(true); }}
+            >
+              <span className="fab-item__label">New category</span>
+              <span className="fab-item__icon"><Flag size={18} /></span>
+            </button>
+            <button
+              className="fab-item"
+              onClick={() => { setFabOpen(false); setShowAddModal(true); }}
+            >
+              <span className="fab-item__label">Add link</span>
+              <span className="fab-item__icon"><Link2 size={18} /></span>
+            </button>
+          </>
+        )}
+        <button
+          className="add-node-fab"
+          onClick={() => setFabOpen(o => !o)}
+          title={fabOpen ? 'Close' : 'Add…'}
+          aria-label={fabOpen ? 'Close menu' : 'Add link or category'}
+          aria-expanded={fabOpen}
+        >
+          {fabOpen ? <X size={22} /> : <Plus size={24} />}
+        </button>
+      </div>
 
       {showAddModal && (
         <AddNodeModal
@@ -415,8 +463,20 @@ function Flow() {
         />
       )}
 
+      {showCategoryModal && (
+        <AddCategoryModal
+          existingCategories={categories}
+          onAdd={handleAddCategory}
+          onClose={() => setShowCategoryModal(false)}
+        />
+      )}
+
       {activeNode && (
-        <NodeModal node={activeNode} onClose={() => setActiveNode(null)} />
+        <NodeModal
+          node={activeNode}
+          onClose={() => setActiveNode(null)}
+          onDelete={handleDeleteNode}
+        />
       )}
 
       {flagMenu && (

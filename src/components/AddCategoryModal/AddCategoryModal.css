@@ -1,0 +1,72 @@
+/* Reuses add-modal-overlay / add-modal / add-modal__* from AddNodeModal.css.
+   Only category-specific additions live here. */
+@import '../AddNodeModal/AddNodeModal.css';
+
+/* ── Color section ───────────────────────────────────────────────────────── */
+.cat-modal__color-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cat-modal__color-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--toolbar-text);
+  opacity: 0.45;
+}
+
+/* ── Swatch grid ─────────────────────────────────────────────────────────── */
+.cat-modal__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-modal__swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--swatch-color);
+  border: 2.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s, opacity 0.12s;
+  outline: none;
+  padding: 0;
+}
+
+.cat-modal__swatch:hover:not(.cat-modal__swatch--taken) {
+  transform: scale(1.15);
+}
+
+.cat-modal__swatch--selected {
+  border-color: var(--node-bg);
+  box-shadow: 0 0 0 2.5px var(--swatch-color);
+  transform: scale(1.12);
+}
+
+.cat-modal__swatch--taken {
+  opacity: 0.25;
+  cursor: not-allowed;
+  position: relative;
+}
+
+/* ── Flag preview ────────────────────────────────────────────────────────── */
+.cat-modal__preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--toolbar-btn-hover);
+  border: 1px solid var(--toolbar-border);
+}
+
+.cat-modal__preview-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: capitalize;
+}

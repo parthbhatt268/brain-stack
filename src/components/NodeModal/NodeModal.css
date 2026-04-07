@@ -183,6 +183,44 @@
   opacity: 0.5;
 }
 
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.modal__footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--toolbar-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal__delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.modal__delete-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+[data-theme='dark'] .modal__delete-btn {
+  color: #f87171;
+}
+
+[data-theme='dark'] .modal__delete-btn:hover {
+  background: #451a1a;
+  border-color: #7f1d1d;
+}
+
 /* ── Mobile: bottom sheet ────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .modal-backdrop {

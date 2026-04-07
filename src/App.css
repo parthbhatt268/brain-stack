@@ -44,12 +44,79 @@
   filter: none !important;
 }
 
-/* ── Add-node FAB ────────────────────────────────────────────────────────── */
-.add-node-fab {
+/* ── Speed-dial dismiss overlay ─────────────────────────────────────────── */
+.fab-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 29; /* below fab-wrap (z-index 30) */
+}
+
+/* ── Speed-dial FAB wrapper ──────────────────────────────────────────────── */
+.fab-wrap {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* Sub-items slide up when open */
+.fab-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 0 14px;
+  height: 40px;
+  border-radius: 20px;
+  border: 1px solid var(--toolbar-border);
+  background: var(--toolbar-bg);
+  backdrop-filter: blur(12px);
+  color: var(--toolbar-text);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  animation: fab-item-in 0.18s cubic-bezier(0.34, 1.3, 0.64, 1);
+  transition: background 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.fab-item:hover {
+  background: var(--toolbar-btn-hover);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+}
+
+.fab-item__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #1a1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@keyframes fab-item-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* Stagger second item slightly */
+.fab-item:first-child { animation-delay: 0.04s; }
+
+/* FAB rotates when open */
+.fab-wrap--open .add-node-fab {
+  box-shadow: 0 4px 20px var(--accent-alpha), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Add-node FAB ────────────────────────────────────────────────────────── */
+.add-node-fab {
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -61,7 +128,7 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 16px var(--accent-alpha), 0 2px 6px rgba(0, 0, 0, 0.15);
-  transition: bottom 0.22s cubic-bezier(0.34, 1.3, 0.64, 1), transform 0.15s, filter 0.15s;
+  transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
 }
 
 .add-node-fab:hover {
@@ -74,8 +141,8 @@
 }
 
 @media (max-width: 480px) {
-  .add-node-fab {
-    bottom: 24px; /* align with search bar */
+  .fab-wrap {
+    bottom: 24px;
     right: 16px;
   }
 }

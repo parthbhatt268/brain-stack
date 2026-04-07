@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Trash2 } from 'lucide-react';
 import SourceIcon from '../SourceIcon/SourceIcon';
 import './NodeModal.css';
 
@@ -15,7 +15,7 @@ function formatDate(iso) {
   });
 }
 
-export default function NodeModal({ node, onClose }) {
+export default function NodeModal({ node, onClose, onDelete }) {
   const backdropRef = useRef(null);
 
   useEffect(() => {
@@ -79,6 +79,14 @@ export default function NodeModal({ node, onClose }) {
             </span>
             <span className="modal__date">{formatDate(datetime)}</span>
           </section>
+        </div>
+
+        {/* Footer */}
+        <div className="modal__footer">
+          <button className="modal__delete-btn" onClick={() => onDelete(node.id)}>
+            <Trash2 size={15} />
+            Delete node
+          </button>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 // Pool of visually distinct colors for auto-assigning to categories
-const COLOR_POOL = [
+export const COLOR_POOL = [
   '#22c55e', // green
   '#ec4899', // pink
   '#ef4444', // red
@@ -18,12 +18,33 @@ let nextColorIndex = 0;
 
 export function getCategoryColor(category) {
   if (!categoryColorMap.has(category)) {
-    categoryColorMap.set(category, COLOR_POOL[nextColorIndex % COLOR_POOL.length]);
-    nextColorIndex++;
+    // Skip colors already taken by other categories
+    const used = new Set(categoryColorMap.values());
+    let color;
+    for (let i = 0; i < COLOR_POOL.length; i++) {
+      const candidate = COLOR_POOL[(nextColorIndex + i) % COLOR_POOL.length];
+      if (!used.has(candidate)) {
+        color = candidate;
+        nextColorIndex = (nextColorIndex + i + 1) % COLOR_POOL.length;
+        break;
+      }
+    }
+    // All colors taken — wrap around and allow a duplicate
+    if (!color) {
+      color = COLOR_POOL[nextColorIndex % COLOR_POOL.length];
+      nextColorIndex = (nextColorIndex + 1) % COLOR_POOL.length;
+    }
+    categoryColorMap.set(category, color);
   }
   return categoryColorMap.get(category);
 }
 
-export function getAllCategoryColors() {
-  return Object.fromEntries(categoryColorMap);
+/** Manually assign a color to a category (e.g. user-picked via the UI). */
+export function setCategoryColor(category, color) {
+  categoryColorMap.set(category, color);
+}
+
+/** Returns the set of hex colors currently assigned to any category. */
+export function getUsedColors() {
+  return new Set(categoryColorMap.values());
 }
