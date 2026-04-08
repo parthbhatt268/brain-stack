@@ -14,6 +14,7 @@ import '@xyflow/react/dist/style.css';
 import { Plus, X, Link2, Flag } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NodeInteractionContext } from './context/NodeInteractionContext';
 import { apiFetch } from './lib/apiClient';
 import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
@@ -385,6 +386,8 @@ function Flow() {
   }, [viewMode, triggerAutoSave]);
 
   // ── Node / flag clicks ────────────────────────────────────────────────────
+  // Single click: select node (ReactFlow default) + open menu for flag/subCategory nodes.
+  // brainNode: single click = select only, no modal.
   const handleNodeClick = useCallback((event, node) => {
     if (node.type === 'flagNode') {
       const nodeCount = nodes.filter(
@@ -411,10 +414,23 @@ function Flow() {
       });
       return;
     }
-    setActiveNode(node);
+    // brainNode: do nothing here — modal opens on double-click (desktop)
+    // or long-press (mobile) via handleNodeDoubleClick / handleLongPress.
+  }, [nodes]);
+
+  // Desktop: double-click on a brainNode opens its detail modal.
+  const handleNodeDoubleClick = useCallback((_event, node) => {
+    if (node.type === 'brainNode') setActiveNode(node);
+  }, []);
+
+  // Mobile: long-press on a brainNode (fired from BrainNode via context).
+  const handleLongPress = useCallback((nodeId) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) setActiveNode(node);
   }, [nodes]);
 
   return (
+    <NodeInteractionContext.Provider value={handleLongPress}>
     <div className="flow-wrapper">
       <Ribbon savedVisible={savedVisible} />
       <Toolbar
@@ -440,6 +456,7 @@ function Flow() {
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onNodeDragStop={handleNodeDragStop}
         fitView
         fitViewOptions={{ padding: 0.4 }}
@@ -537,6 +554,7 @@ function Flow() {
         />
       )}
     </div>
+    </NodeInteractionContext.Provider>
   );
 }
 
