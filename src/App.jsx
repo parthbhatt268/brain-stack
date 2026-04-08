@@ -18,6 +18,7 @@ import { buildGraph } from './utils/buildGraph';
 import { getCategoryColor } from './utils/categoryColors';
 import BrainNode from './components/BrainNode/BrainNode';
 import FlagNode from './components/FlagNode/FlagNode';
+import SubCategoryNode from './components/SubCategoryNode/SubCategoryNode';
 import Toolbar from './components/Toolbar/Toolbar';
 import Ribbon from './components/Ribbon/Ribbon';
 import NodeModal from './components/NodeModal/NodeModal';
@@ -29,7 +30,7 @@ import { searchNodes } from './utils/searchNodes';
 import { setCategoryColor } from './utils/categoryColors';
 import './App.css';
 
-const nodeTypes = { brainNode: BrainNode, flagNode: FlagNode };
+const nodeTypes = { brainNode: BrainNode, flagNode: FlagNode, subCategoryNode: SubCategoryNode };
 
 // ── Position persistence (localStorage) ──────────────────────────────────────
 const POSITIONS_KEY = 'brain-stack-positions';
@@ -272,7 +273,15 @@ function Flow() {
       },
     };
 
-    const edgeSourceId = lastNode ? lastNode.id : `flag-${category}`;
+    let edgeSourceId;
+    if (lastNode) {
+      edgeSourceId = lastNode.id;
+    } else if (viewMode === 'subcategory') {
+      const branch = subcategory || 'General';
+      edgeSourceId = `subcategory-${category}-${branch}`;
+    } else {
+      edgeSourceId = `flag-${category}`;
+    }
     const newEdge = {
       id: `edge-${edgeSourceId}-${newId}`,
       source: edgeSourceId,
@@ -354,6 +363,20 @@ function Flow() {
     if (node.type === 'flagNode') {
       const nodeCount = nodes.filter(
         n => n.type === 'brainNode' && n.data.category === node.data.category,
+      ).length;
+      setFlagMenu({
+        flag: node,
+        position: { x: event.clientX + 12, y: event.clientY + 12 },
+        nodeCount,
+      });
+      return;
+    }
+    if (node.type === 'subCategoryNode') {
+      const { category, label } = node.data;
+      const nodeCount = nodes.filter(
+        n => n.type === 'brainNode' &&
+             n.data.category === category &&
+             (n.data.subcategory || 'General') === label,
       ).length;
       setFlagMenu({
         flag: node,

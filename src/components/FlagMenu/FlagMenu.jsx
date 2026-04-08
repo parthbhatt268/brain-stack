@@ -22,13 +22,14 @@ export default function FlagMenu({ flag, position, nodeCount, onClose }) {
   const x = Math.min(position.x, window.innerWidth  - MENU_W - 12);
   const y = Math.min(position.y, window.innerHeight - 80  - 12);
 
-  const { category, color } = flag.data;
+  const { category, label, color } = flag.data;
+  const displayName = label ? `${category} › ${label}` : category;
 
   return (
     <div ref={ref} className="flag-menu" style={{ left: x, top: y }}>
       <div className="flag-menu__header">
         <span className="flag-menu__dot" style={{ background: color }} />
-        <span className="flag-menu__category">{category}</span>
+        <span className="flag-menu__category">{displayName}</span>
       </div>
       <p className="flag-menu__count">
         {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}

@@ -3,7 +3,8 @@ import { getCategoryColor } from './categoryColors';
 const CATEGORY_X_SPACING = 220; // gap between separate category groups
 const BRANCH_X_SPACING   = 160; // gap between branches within a category
 const NODE_Y_SPACING      = 120; // fixed px between consecutive nodes in a lane
-const FLAG_Y_OFFSET       = 160; // px above the topmost node — extra space gives bezier edges room to curve
+const FLAG_Y_OFFSET       = 200; // px above the topmost node — extra space gives bezier edges room to curve
+const SUBFLAG_Y_OFFSET    = 100; // px above the first node in each branch
 
 /**
  * Build the full ReactFlow node + edge graph from raw data nodes.
@@ -95,7 +96,39 @@ export function buildGraph(dataNodes, viewMode = 'subcategory') {
     };
   });
 
-  const nodes = [...flagNodes, ...brainNodes];
+  // ── SubCategory nodes — one per branch, only in subcategory mode ─────────
+  // Displayed as tag-chip nodes; absent in timeline and platform modes.
+  const subCategoryNodes = [];
+  if (viewMode === 'subcategory') {
+    for (const cat of categories) {
+      const color    = getCategoryColor(cat);
+      const catNodes = brainNodes.filter(n => n.data.category === cat);
+
+      const branchMap = {};
+      for (const node of catNodes) {
+        const branch = branchOf(node.data);
+        if (!branchMap[branch]) branchMap[branch] = [];
+        branchMap[branch].push(node);
+      }
+
+      for (const [branch, bNodes] of Object.entries(branchMap)) {
+        const laneKey = `${cat}::${branch}`;
+        const firstY  = Math.min(...bNodes.map(n => n.position.y));
+        // SUBFLAG_Y_OFFSET = FLAG_Y_OFFSET / 2 keeps all three levels equidistant:
+        // category flag (−200) → subcategory tag (−100) → first node (0)
+        subCategoryNodes.push({
+          id: `subcategory-${cat}-${branch}`,
+          type: 'subCategoryNode',
+          position: { x: laneX[laneKey] ?? categoryFlagX[cat], y: firstY - SUBFLAG_Y_OFFSET },
+          data: { category: cat, label: branch, color },
+          draggable: true,
+          selectable: false,
+        });
+      }
+    }
+  }
+
+  const nodes = [...flagNodes, ...subCategoryNodes, ...brainNodes];
 
   // ── Edges ────────────────────────────────────────────────────────────────
   const edges = [];
@@ -113,18 +146,38 @@ export function buildGraph(dataNodes, viewMode = 'subcategory') {
         branchMap[branch].push(node);
       }
 
-      for (const branchNodes of Object.values(branchMap)) {
+      for (const [branch, branchNodes] of Object.entries(branchMap)) {
         const chron = [...branchNodes].sort(
           (a, b) => new Date(a.data.datetime) - new Date(b.data.datetime),
         );
 
-        edges.push({
-          id: `edge-flag-${cat}-${chron[0].id}`,
-          source: `flag-${cat}`,
-          target: chron[0].id,
-          type: 'default',
-          style: { stroke: color, strokeWidth: 2 },
-        });
+        if (viewMode === 'subcategory') {
+          // category flag → subcategory tag node → first branch node
+          const subCatId = `subcategory-${cat}-${branch}`;
+          edges.push({
+            id: `edge-flag-${cat}-${subCatId}`,
+            source: `flag-${cat}`,
+            target: subCatId,
+            type: 'default',
+            style: { stroke: color, strokeWidth: 2 },
+          });
+          edges.push({
+            id: `edge-${subCatId}-${chron[0].id}`,
+            source: subCatId,
+            target: chron[0].id,
+            type: 'default',
+            style: { stroke: color, strokeWidth: 2 },
+          });
+        } else {
+          // platform mode: category flag → first branch node directly
+          edges.push({
+            id: `edge-flag-${cat}-${chron[0].id}`,
+            source: `flag-${cat}`,
+            target: chron[0].id,
+            type: 'default',
+            style: { stroke: color, strokeWidth: 2 },
+          });
+        }
 
         for (let i = 0; i < chron.length - 1; i++) {
           edges.push({
