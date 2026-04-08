@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { X, ExternalLink, Trash2 } from 'lucide-react';
-import SourceIcon from '../SourceIcon/SourceIcon';
+import SourceIcon, { detectSource } from '../SourceIcon/SourceIcon';
 import './NodeModal.css';
 
 const ORIGIN_LABELS = {
@@ -29,7 +29,8 @@ export default function NodeModal({ node, onClose, onDelete }) {
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const { source, color, category, summary, url, datetime, origin } = node.data;
+  const { color, category, summary, url, datetime, origin } = node.data;
+  const source = detectSource(url);
   const originMeta = ORIGIN_LABELS[origin] || ORIGIN_LABELS.added;
 
   return (
@@ -43,7 +44,7 @@ export default function NodeModal({ node, onClose, onDelete }) {
         {/* Header */}
         <div className="modal__header">
           <div className="modal__header-icon">
-            <SourceIcon source={source} />
+            <SourceIcon url={url} />
           </div>
           <div className="modal__header-meta">
             <span className="modal__source-label">{source}</span>

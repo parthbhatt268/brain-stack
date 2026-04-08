@@ -37,7 +37,6 @@ export async function searchNodes(query, nodes, categoryFilter = 'all') {
       id:          n.id,
       summary:     n.data.summary,
       url:         n.data.url,
-      source:      n.data.source,
       category:    n.data.category,
       subcategory: n.data.subcategory ?? null,
     })),

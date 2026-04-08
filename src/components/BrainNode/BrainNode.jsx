@@ -7,7 +7,7 @@ import './BrainNode.css';
 const LONG_PRESS_MS = 500;
 
 export default function BrainNode({ id, data, selected }) {
-  const { source, color, category, highlighted } = data;
+  const { url, color, category, highlighted } = data;
   const onLongPress = useNodeInteraction();
 
   const timerRef  = useRef(null);
@@ -55,7 +55,7 @@ export default function BrainNode({ id, data, selected }) {
       <Handle type="target" position={Position.Top} className="brain-node__handle" />
 
       <div className="brain-node__icon">
-        <SourceIcon source={source} />
+        <SourceIcon url={url} />
       </div>
 
       <div className="brain-node__badge" style={{ backgroundColor: color }}>

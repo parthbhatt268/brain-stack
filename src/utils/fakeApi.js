@@ -6,31 +6,18 @@
  * See assumptions.md for full details.
  */
 
-function detectSource(url) {
-  try {
-    const host = new URL(url).hostname.replace('www.', '');
-    const map = {
-      'youtube.com':   'youtube',
-      'youtu.be':      'youtube',
-      'github.com':    'github',
-      'instagram.com': 'instagram',
-      'tiktok.com':    'tiktok',
-      'reddit.com':    'reddit',
-      'linkedin.com':  'linkedin',
-    };
-    return map[host] || 'article';
-  } catch {
-    return 'article';
-  }
-}
-
 /**
  * Fake ~900 ms round-trip, then return hardcoded classification.
  *
  * @param {string} url
- * @returns {Promise<{ category, subcategory, source, summary, origin }>}
+ * @returns {Promise<{ category, subcategory, summary, origin }>}
+ *
+ * Note: `source` (platform) is no longer returned — it is derived from the
+ * URL by detectSource() wherever it is needed. The backend will do the same
+ * derivation and store both url and source separately in the DB.
  */
 export async function analyseUrl(url) {
+  void url; // real backend will use this to classify content
   await new Promise(r => setTimeout(r, 900));
 
   // HARDCODED: always classifies as AI / LLM & Prompting.
@@ -38,7 +25,6 @@ export async function analyseUrl(url) {
   return {
     category:    'ai',
     subcategory: 'LLM & Prompting',
-    source:      detectSource(url),
     summary:
       'Content saved from the provided URL. A full AI-generated summary will appear here once the classification backend is connected.',
     origin: 'added',

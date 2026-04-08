@@ -49,8 +49,9 @@ export function detectSource(url) {
   return 'article';
 }
 
-export default function SourceIcon({ source }) {
-  const brand = SI_ICONS[source];
+export default function SourceIcon({ url }) {
+  const source = detectSource(url);
+  const brand  = SI_ICONS[source];
 
   if (brand) {
     const icon = <brand.Icon size={SIZE} color={brand.color} />;

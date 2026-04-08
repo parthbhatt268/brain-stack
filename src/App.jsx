@@ -22,6 +22,7 @@ import { getCategoryColor } from './utils/categoryColors';
 import BrainNode from './components/BrainNode/BrainNode';
 import FlagNode from './components/FlagNode/FlagNode';
 import SubCategoryNode from './components/SubCategoryNode/SubCategoryNode';
+import { detectSource } from './components/SourceIcon/SourceIcon';
 import Toolbar from './components/Toolbar/Toolbar';
 import Ribbon from './components/Ribbon/Ribbon';
 import NodeModal from './components/NodeModal/NodeModal';
@@ -261,16 +262,17 @@ function Flow() {
   }, [nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Add node via URL ──────────────────────────────────────────────────────
-  const handleAddNode = useCallback(({ url, category, subcategory, source, summary, origin }) => {
+  const handleAddNode = useCallback(({ url, category, subcategory, summary, origin }) => {
     pushHistory(nodes, edges);
 
-    const color = getCategoryColor(category);
+    const color  = getCategoryColor(category);
+    const source = detectSource(url); // derived — not stored in transit, used for lane placement
 
     // Find the last node in the target lane to chain after it
     const laneNodes = nodes.filter(n => {
       if (n.type !== 'brainNode' || n.data.category !== category) return false;
       if (viewMode === 'subcategory' && subcategory) return n.data.subcategory === subcategory;
-      if (viewMode === 'platform'    && source)      return n.data.source      === source;
+      if (viewMode === 'platform')   return detectSource(n.data.url) === source;
       return true;
     });
 
@@ -291,7 +293,6 @@ function Flow() {
         id: newId,
         category,
         subcategory: subcategory ?? null,
-        source,
         url,
         summary,
         datetime: new Date().toISOString(),

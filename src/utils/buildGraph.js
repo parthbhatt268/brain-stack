@@ -1,4 +1,5 @@
 import { getCategoryColor } from './categoryColors';
+import { detectSource } from '../components/SourceIcon/SourceIcon';
 
 const CATEGORY_X_SPACING = 220; // gap between separate category groups
 const BRANCH_X_SPACING   = 160; // gap between branches within a category
@@ -30,7 +31,7 @@ export function buildGraph(dataNodes, viewMode = 'subcategory') {
   // Returns the branch label for an item, or null if no branching
   function branchOf(item) {
     if (viewMode === 'subcategory') return item.subcategory || 'General';
-    if (viewMode === 'platform')    return item.source      || 'Other';
+    if (viewMode === 'platform')    return detectSource(item.url) || 'Other';
     return null;
   }
 
