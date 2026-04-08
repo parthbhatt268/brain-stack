@@ -3,8 +3,8 @@ import { getCategoryColor } from './categoryColors';
 const CATEGORY_X_SPACING = 220; // gap between separate category groups
 const BRANCH_X_SPACING   = 160; // gap between branches within a category
 const NODE_Y_SPACING      = 120; // fixed px between consecutive nodes in a lane
-const FLAG_Y_OFFSET       = 200; // px above the topmost node — extra space gives bezier edges room to curve
-const SUBFLAG_Y_OFFSET    = 100; // px above the first node in each branch
+const FLAG_Y_OFFSET       = 280; // px above the topmost node
+const SUBFLAG_Y_OFFSET    = 140; // px above the first node in each branch (FLAG_Y_OFFSET / 2)
 
 /**
  * Build the full ReactFlow node + edge graph from raw data nodes.

@@ -1,7 +1,79 @@
-import { Check } from 'lucide-react';
-import { Sun, Moon, User } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { Check, User } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import './Ribbon.css';
+
+function AuthArea() {
+  const { user, signInWithGoogle, signOut } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [dropdownOpen]);
+
+  if (!user) {
+    return (
+      <div className="ribbon__auth-buttons">
+        <button
+          className="ribbon__auth-btn"
+          onClick={signInWithGoogle}
+          title="Sign in with Google"
+        >
+          Sign In
+        </button>
+        <button
+          className="ribbon__auth-btn ribbon__auth-btn--primary"
+          onClick={signInWithGoogle}
+          title="Create account with Google"
+        >
+          Sign Up
+        </button>
+      </div>
+    );
+  }
+
+  const avatarUrl = user.user_metadata?.avatar_url;
+  const displayName = user.user_metadata?.full_name ?? user.email ?? 'User';
+
+  return (
+    <div className="ribbon__avatar-wrap" ref={dropdownRef}>
+      <button
+        className="ribbon__avatar ribbon__avatar--photo"
+        title={displayName}
+        onClick={() => setDropdownOpen(o => !o)}
+        aria-expanded={dropdownOpen}
+      >
+        {avatarUrl
+          ? <img src={avatarUrl} alt={displayName} className="ribbon__avatar-img" referrerPolicy="no-referrer" />
+          : <User size={18} />
+        }
+      </button>
+
+      {dropdownOpen && (
+        <div className="ribbon__dropdown">
+          <span className="ribbon__dropdown-name">{displayName}</span>
+          <button
+            className="ribbon__dropdown-item"
+            onClick={() => { setDropdownOpen(false); signOut(); }}
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Ribbon({ savedVisible }) {
   const { theme, toggleTheme } = useTheme();
@@ -37,9 +109,7 @@ export default function Ribbon({ savedVisible }) {
           </span>
         </label>
 
-        <button className="ribbon__avatar" title="Profile">
-          <User size={18} />
-        </button>
+        <AuthArea />
       </div>
     </header>
   );

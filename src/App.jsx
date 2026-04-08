@@ -13,6 +13,8 @@ import '@xyflow/react/dist/style.css';
 
 import { Plus, X, Link2, Flag } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { apiFetch } from './lib/apiClient';
 import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
 import { getCategoryColor } from './utils/categoryColors';
@@ -66,6 +68,12 @@ function Flow() {
   // View mode drives the graph layout
   const [viewMode, setViewMode] = useState('subcategory');
 
+  // Tracks which data nodes are currently in use (demo or user-loaded).
+  // A ref keeps it out of the render cycle — buildGraph is called explicitly.
+  const dataNodesRef = useRef(demoNodes);
+
+  const { user } = useAuth();
+
   const initialGraph = useMemo(() => {
     const graph = buildGraph(demoNodes, 'subcategory');
     graph.nodes = applyPositions(graph.nodes, loadSavedPositions('subcategory'));
@@ -99,6 +107,24 @@ function Flow() {
     if (!hasMounted.current) { hasMounted.current = true; return; }
     fitView({ duration: 600, padding: 0.4 });
   }, [viewMode]); // fitView is stable — intentionally omitted from deps
+
+  // When the user signs in, swap demo graph for their saved graph.
+  // Silently falls back to demo data if the request fails or returns nothing.
+  useEffect(() => {
+    if (!user) return;
+    apiFetch(`/graph/${user.id}`)
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(data => {
+        if (!Array.isArray(data) || !data.length) return;
+        dataNodesRef.current = data;
+        const { nodes: newNodes, edges: newEdges } = buildGraph(data, viewMode);
+        setNodes(applyPositions(newNodes, loadSavedPositions(viewMode)));
+        setEdges(newEdges);
+      })
+      .catch(() => {}); // keep demo graph on any error
+  // viewMode intentionally excluded — we only reload on sign-in, not on every mode switch
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const hasSelection = useMemo(() => nodes.some(n => n.selected), [nodes]);
 
@@ -164,7 +190,7 @@ function Flow() {
   const handleSetViewMode = useCallback((newMode) => {
     if (newMode === viewMode) return;
     pushHistory(nodes, edges);
-    const { nodes: newNodes, edges: newEdges } = buildGraph(demoNodes, newMode);
+    const { nodes: newNodes, edges: newEdges } = buildGraph(dataNodesRef.current, newMode);
     setViewMode(newMode);
     setNodes(applyPositions(newNodes, loadSavedPositions(newMode)));
     setEdges(newEdges);
@@ -517,9 +543,11 @@ function Flow() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ReactFlowProvider>
-        <Flow />
-      </ReactFlowProvider>
+      <AuthProvider>
+        <ReactFlowProvider>
+          <Flow />
+        </ReactFlowProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

@@ -111,7 +111,48 @@
   right: 5px;
 }
 
-/* ===== Avatar placeholder ===== */
+/* ===== Auth buttons (signed-out state) ===== */
+.ribbon__auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ribbon__auth-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1.5px solid var(--toolbar-border);
+  background: transparent;
+  color: var(--toolbar-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.ribbon__auth-btn:hover {
+  border-color: var(--accent);
+  background: var(--toolbar-btn-hover);
+}
+
+.ribbon__auth-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a1a;
+}
+
+.ribbon__auth-btn--primary:hover {
+  opacity: 0.88;
+  background: var(--accent);
+}
+
+/* ===== Avatar (signed-in state) ===== */
+.ribbon__avatar-wrap {
+  position: relative;
+}
+
 .ribbon__avatar {
   width: 32px;
   height: 32px;
@@ -124,8 +165,68 @@
   justify-content: center;
   cursor: pointer;
   transition: border-color 0.15s;
+  padding: 0;
+  overflow: hidden;
 }
 
-.ribbon__avatar:hover {
+.ribbon__avatar:hover,
+.ribbon__avatar[aria-expanded="true"] {
   border-color: var(--accent);
+}
+
+.ribbon__avatar--photo {
+  border-color: var(--accent);
+}
+
+.ribbon__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+/* ===== Avatar dropdown ===== */
+.ribbon__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.ribbon__dropdown-name {
+  display: block;
+  padding: 10px 14px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--toolbar-text);
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ribbon__dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--toolbar-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.ribbon__dropdown-item:hover {
+  background: var(--toolbar-btn-hover);
 }
