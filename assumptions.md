@@ -142,10 +142,15 @@ only to `localStorage` (positions) or not at all (node additions/deletions).
 
 ```
 GET /api/graph
-→ { nodes: [...], positions: { subcategory: {...}, platform: {...}, timeline: {...} } }
+→ {
+    nodes:      [...],     // data node records (see Node schema below)
+    categories: [...],     // user-created categories with no nodes yet (see §9)
+    positions:  { subcategory: {...}, platform: {...}, timeline: {...} }
+  }
 ```
 
 `nodes` should match the node schema below.
+`categories` is the list of empty user-created categories (see §9).
 `positions` is the per-view-mode position map (see §5 below).
 
 **On auto-save (debounced, ~2 s after last change):**
@@ -277,3 +282,64 @@ Uses `position: absolute; left: calc(100% + 8px)`. No smart repositioning — on
 viewports narrower than ~300 px the panel may clip the right edge.
 
 Fix: `getBoundingClientRect` check on open; flip to `right: calc(100% + 8px)` if overflow.
+
+---
+
+### §9 — Empty categories stored in a separate table, not as dummy nodes
+
+**Background:**
+When a user creates a new category without adding any nodes to it, there is no
+data record to attach the category to. Instead of inserting a sentinel/dummy node,
+empty categories are stored in a dedicated `categories` table in the database.
+
+**Why not a dummy node:**
+Dummy nodes would pollute the node table, require every consumer to filter them out,
+and break node-count logic (e.g. the flag menu shows "X nodes in this category").
+
+**Backend — Supabase table:**
+
+```sql
+CREATE TABLE categories (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name       text NOT NULL,
+  color      text NOT NULL,            -- hex string, e.g. "#22c55e"
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (user_id, name)
+);
+```
+
+**API endpoints:**
+
+`POST /api/categories` — create an empty category for the authenticated user.
+
+```json
+Request:  { "name": "cooking", "color": "#22c55e" }
+Response: { "id": "<uuid>", "name": "cooking", "color": "#22c55e" }
+```
+
+`DELETE /api/categories/:name` — delete a category (only needed if the category
+still has no nodes; categories with nodes are implicitly defined by their nodes).
+
+**Lifecycle:**
+- Row is created when the user creates a new category with no initial node.
+- Row is deleted (or simply ignored) once the first node with that category is saved —
+  the category is now implicitly defined by its nodes.
+- `GET /api/graph` returns both `nodes` and `categories` so the frontend can render
+  flag nodes for empty categories alongside populated ones.
+
+**Frontend:**
+
+**File:** `src/App.jsx` — `userCategoriesRef`, `handleAddCategory`
+
+`userCategoriesRef` (a `useRef`) holds `[{ name, color }]` — the list of empty
+categories for the current user. It is:
+- Populated from `data.categories` in the sign-in effect.
+- Extended by `handleAddCategory` (and a stubbed `POST /api/categories` call fires).
+- Pruned in `handleAddNode` when the first node is added to a previously empty category.
+
+**File:** `src/utils/buildGraph.js` — `buildGraph(dataNodes, viewMode, extraCategories)`
+
+`extraCategories` (`[{ name, color }]`) are rendered as lone flag nodes placed after
+all populated category trees. Categories already present in `dataNodes` are skipped
+to prevent duplicate flags.

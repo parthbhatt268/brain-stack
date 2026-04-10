@@ -74,6 +74,12 @@ function Flow() {
   // A ref keeps it out of the render cycle — buildGraph is called explicitly.
   const dataNodesRef = useRef(demoNodes);
 
+  // Tracks user-created categories that have no data nodes yet.
+  // Stored separately (not in dataNodesRef) so they persist across view-mode rebuilds.
+  // Populated from the backend's /graph response (data.categories) and updated
+  // locally when the user adds a new category or adds the first node to one.
+  const userCategoriesRef = useRef([]);
+
   const { user } = useAuth();
 
   const initialGraph = useMemo(() => {
@@ -112,14 +118,21 @@ function Flow() {
 
   // When the user signs in, swap demo graph for their saved graph.
   // Silently falls back to demo data if the request fails or returns nothing.
+  // Response shape: { nodes: [...], categories: [...] }
+  //   nodes      — raw data node records
+  //   categories — user-created categories that have no nodes yet
   useEffect(() => {
     if (!user) return;
     apiFetch(`/graph/${user.id}`)
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then(data => {
-        if (!Array.isArray(data) || !data.length) return;
-        dataNodesRef.current = data;
-        const { nodes: newNodes, edges: newEdges } = buildGraph(data, viewMode);
+        // Support legacy array shape during backend transition
+        const nodeData = Array.isArray(data) ? data : (data.nodes ?? []);
+        const catData  = Array.isArray(data) ? [] : (data.categories ?? []);
+        if (!nodeData.length && !catData.length) return;
+        dataNodesRef.current    = nodeData;
+        userCategoriesRef.current = catData;
+        const { nodes: newNodes, edges: newEdges } = buildGraph(nodeData, viewMode, catData);
         setNodes(applyPositions(newNodes, loadSavedPositions(viewMode)));
         setEdges(newEdges);
       })
@@ -192,7 +205,7 @@ function Flow() {
   const handleSetViewMode = useCallback((newMode) => {
     if (newMode === viewMode) return;
     pushHistory(nodes, edges);
-    const { nodes: newNodes, edges: newEdges } = buildGraph(dataNodesRef.current, newMode);
+    const { nodes: newNodes, edges: newEdges } = buildGraph(dataNodesRef.current, newMode, userCategoriesRef.current);
     setViewMode(newMode);
     setNodes(applyPositions(newNodes, loadSavedPositions(newMode)));
     setEdges(newEdges);
@@ -318,6 +331,9 @@ function Flow() {
       style: { stroke: color, strokeWidth: 2 },
     };
 
+    // If this category was empty (tracked separately), it now has a real node — remove it.
+    userCategoriesRef.current = userCategoriesRef.current.filter(c => c.name !== category);
+
     setNodes(nds => [...nds, newNode]);
     setEdges(eds => [...eds, newEdge]);
     triggerAutoSave();
@@ -328,23 +344,28 @@ function Flow() {
     pushHistory(nodes, edges);
     setCategoryColor(name, color);
 
-    const flagNodes  = nodes.filter(n => n.type === 'flagNode');
-    const rightmostX = flagNodes.length
-      ? Math.max(...flagNodes.map(n => n.position.x))
-      : -220; // becomes 0 after + spacing
+    // Track this empty category so it survives view-mode rebuilds
+    userCategoriesRef.current = [...userCategoriesRef.current, { name, color }];
 
-    const newFlag = {
-      id: `flag-${name}`,
-      type: 'flagNode',
-      position: { x: rightmostX + 220, y: -160 },
-      data: { category: name, color },
-      draggable: true,
-      selectable: false,
-    };
+    // Rebuild the full graph so buildGraph controls flag positioning consistently
+    const { nodes: newNodes, edges: newEdges } = buildGraph(
+      dataNodesRef.current, viewMode, userCategoriesRef.current,
+    );
+    setNodes(applyPositions(newNodes, loadSavedPositions(viewMode)));
+    setEdges(newEdges);
 
-    setNodes(nds => [...nds, newFlag]);
+    // Stub: persist the new category to the backend.
+    // Replace with a real fetch once POST /api/categories is implemented.
+    // See assumptions.md §9 for the expected request/response shape.
+    if (user) {
+      apiFetch('/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name, color }),
+      }).catch(() => {});
+    }
+
     triggerAutoSave();
-  }, [nodes, edges, pushHistory, setNodes, triggerAutoSave]);
+  }, [nodes, edges, viewMode, user, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Search ────────────────────────────────────────────────────────────────
   const handleSearch = useCallback(async (query, categoryFilter) => {
