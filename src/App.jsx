@@ -15,7 +15,7 @@ import { Plus, X, Link2, Flag } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NodeInteractionContext } from './context/NodeInteractionContext';
-import { apiFetch } from './lib/apiClient';
+import { supabase } from './lib/supabaseClient';
 import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
 import { getCategoryColor } from './utils/categoryColors';
@@ -117,26 +117,31 @@ function Flow() {
   }, [viewMode]); // fitView is stable — intentionally omitted from deps
 
   // When the user signs in, swap demo graph for their saved graph.
-  // Silently falls back to demo data if the request fails or returns nothing.
-  // Response shape: { nodes: [...], categories: [...] }
-  //   nodes      — raw data node records
-  //   categories — user-created categories that have no nodes yet
+  // Three parallel Supabase queries — RLS automatically scopes each to the signed-in user.
+  // Silently falls back to demo data if all queries fail or return nothing.
   useEffect(() => {
     if (!user) return;
-    apiFetch(`/graph/${user.id}`)
-      .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then(data => {
-        // Support legacy array shape during backend transition
-        const nodeData = Array.isArray(data) ? data : (data.nodes ?? []);
-        const catData  = Array.isArray(data) ? [] : (data.categories ?? []);
-        if (!nodeData.length && !catData.length) return;
-        dataNodesRef.current    = nodeData;
-        userCategoriesRef.current = catData;
-        const { nodes: newNodes, edges: newEdges } = buildGraph(nodeData, viewMode, catData);
-        setNodes(applyPositions(newNodes, loadSavedPositions(viewMode)));
-        setEdges(newEdges);
-      })
-      .catch(() => {}); // keep demo graph on any error
+    Promise.all([
+      supabase.from('nodes').select('*'),
+      supabase.from('categories').select('name, color'),
+      supabase.from('graph_positions').select('view_mode, positions'),
+    ]).then(([{ data: nodeData }, { data: catData }, { data: posRows }]) => {
+      const nodes    = nodeData ?? [];
+      const cats     = catData  ?? [];
+      const dbPosMap = Object.fromEntries((posRows ?? []).map(r => [r.view_mode, r.positions]));
+
+      if (!nodes.length && !cats.length) return; // keep demo graph
+
+      dataNodesRef.current      = nodes;
+      userCategoriesRef.current = cats;
+
+      const { nodes: newNodes, edges: newEdges } = buildGraph(nodes, viewMode, cats);
+
+      // Prefer DB positions; fall back to localStorage if not saved to DB yet
+      const posForMode = dbPosMap[viewMode] ?? loadSavedPositions(viewMode);
+      setNodes(applyPositions(newNodes, posForMode));
+      setEdges(newEdges);
+    }).catch(() => {}); // keep demo graph on any error
   // viewMode intentionally excluded — we only reload on sign-in, not on every mode switch
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -271,8 +276,14 @@ function Flow() {
     setNodes(nds => nds.filter(n => n.id !== nodeId));
     setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
     setActiveNode(null);
+
+    if (user) {
+      supabase.from('nodes').delete().eq('id', nodeId)
+        .then(({ error }) => { if (error) console.error('Node delete failed', error.message); });
+    }
+
     triggerAutoSave();
-  }, [nodes, edges, pushHistory, setNodes, setEdges, triggerAutoSave]);
+  }, [nodes, edges, user, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Add node via URL ──────────────────────────────────────────────────────
   const handleAddNode = useCallback(({ url, category, subcategory, summary, origin }) => {
@@ -334,10 +345,24 @@ function Flow() {
     // If this category was empty (tracked separately), it now has a real node — remove it.
     userCategoriesRef.current = userCategoriesRef.current.filter(c => c.name !== category);
 
+    if (user) {
+      supabase.from('nodes').insert({
+        id:          newId,
+        user_id:     user.id,
+        category,
+        subcategory: subcategory ?? null,
+        source:      detectSource(url),
+        url,
+        summary,
+        datetime:    new Date().toISOString(),
+        origin,
+      }).then(({ error }) => { if (error) console.error('Node save failed', error.message); });
+    }
+
     setNodes(nds => [...nds, newNode]);
     setEdges(eds => [...eds, newEdge]);
     triggerAutoSave();
-  }, [nodes, edges, viewMode, pushHistory, setNodes, setEdges, triggerAutoSave]);
+  }, [nodes, edges, viewMode, user, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Add category (flag-only, no nodes yet) ───────────────────────────────
   const handleAddCategory = useCallback(({ name, color }) => {
@@ -354,14 +379,9 @@ function Flow() {
     setNodes(applyPositions(newNodes, loadSavedPositions(viewMode)));
     setEdges(newEdges);
 
-    // Stub: persist the new category to the backend.
-    // Replace with a real fetch once POST /api/categories is implemented.
-    // See assumptions.md §9 for the expected request/response shape.
     if (user) {
-      apiFetch('/categories', {
-        method: 'POST',
-        body: JSON.stringify({ name, color }),
-      }).catch(() => {});
+      supabase.from('categories').insert({ user_id: user.id, name, color })
+        .then(({ error }) => { if (error) console.error('Category save failed', error.message); });
     }
 
     triggerAutoSave();
@@ -403,9 +423,18 @@ function Flow() {
 
   // ── Node drag stop — persist positions ───────────────────────────────────
   const handleNodeDragStop = useCallback((_event, _node, allNodes) => {
-    savePositionsForMode(viewMode, allNodes);
+    savePositionsForMode(viewMode, allNodes); // localStorage (offline fallback)
+
+    if (user) {
+      const positionMap = Object.fromEntries(allNodes.map(n => [n.id, n.position]));
+      supabase.from('graph_positions').upsert(
+        { user_id: user.id, view_mode: viewMode, positions: positionMap, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,view_mode' },
+      ).then(({ error }) => { if (error) console.error('Position save failed', error.message); });
+    }
+
     triggerAutoSave();
-  }, [viewMode, triggerAutoSave]);
+  }, [viewMode, user, triggerAutoSave]);
 
   // ── Node / flag clicks ────────────────────────────────────────────────────
   // Single click: select node (ReactFlow default) + open menu for flag/subCategory nodes.

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link2, Loader2 } from 'lucide-react';
-import { analyseUrl } from '../../utils/fakeApi';
+import { analyseUrl } from '../../utils/api';
 import { validateUrl } from '../../utils/validateUrl';
 import './AddNodeModal.css';
 
