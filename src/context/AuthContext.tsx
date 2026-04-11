@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 
 interface AuthContextValue {
   user: User | null;
+  loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -12,37 +13,22 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser]       = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // true until first auth resolution
 
   useEffect(() => {
-    const demoEmail    = import.meta.env.VITE_DEMO_EMAIL as string | undefined;
-    const demoPassword = import.meta.env.VITE_DEMO_PASSWORD as string | undefined;
-
-    // If no active session, automatically sign in as the demo user so
-    // hackathon visitors see a populated graph without any Google login.
-    async function signInAsDemo() {
-      if (!demoEmail || !demoPassword) return;
-      await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPassword });
-      // onAuthStateChange fires SIGNED_IN and sets the user
-    }
-
-    // Hydrate from existing session on mount; fall back to demo auto-login
+    // Restore existing session on mount (e.g. returning visitor with active cookie).
+    // If no session, loading clears and the sign-in modal is shown — the user
+    // must click "Demo login" or "Continue with Google" to enter the app.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-      } else {
-        signInAsDemo();
-      }
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
-    // Keep in sync with Supabase auth events (OAuth redirect, sign out, etc.)
-    // On sign-out, automatically restore the demo session.
+    // Keep in sync with all auth events (OAuth redirect, sign out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-      } else {
-        signInAsDemo();
-      }
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -57,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

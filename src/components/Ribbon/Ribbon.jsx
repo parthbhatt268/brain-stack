@@ -22,29 +22,12 @@ function AuthArea() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [dropdownOpen]);
 
-  if (!user) {
-    return (
-      <div className="ribbon__auth-buttons">
-        <button
-          className="ribbon__auth-btn"
-          onClick={signInWithGoogle}
-          title="Sign in with Google"
-        >
-          Sign In
-        </button>
-        <button
-          className="ribbon__auth-btn ribbon__auth-btn--primary"
-          onClick={signInWithGoogle}
-          title="Create account with Google"
-        >
-          Sign Up
-        </button>
-      </div>
-    );
-  }
+  // When user is null the SignInModal overlay handles sign-in — nothing to show here
+  if (!user) return null;
 
-  const avatarUrl = user.user_metadata?.avatar_url;
-  const displayName = user.user_metadata?.full_name ?? user.email ?? 'User';
+  const isDemoUser  = user.email === import.meta.env.VITE_DEMO_EMAIL;
+  const avatarUrl   = isDemoUser ? null : user.user_metadata?.avatar_url;
+  const displayName = isDemoUser ? 'Demo' : (user.user_metadata?.full_name ?? user.email ?? 'User');
 
   return (
     <div className="ribbon__avatar-wrap" ref={dropdownRef}>

@@ -30,6 +30,7 @@ import FlagMenu from './components/FlagMenu/FlagMenu';
 import AddNodeModal from './components/AddNodeModal/AddNodeModal';
 import AddCategoryModal from './components/AddCategoryModal/AddCategoryModal';
 import SearchBar from './components/SearchBar/SearchBar';
+import SignInModal from './components/SignInModal/SignInModal';
 import { searchNodes } from './utils/searchNodes';
 import { setCategoryColor } from './utils/categoryColors';
 import './App.css';
@@ -80,7 +81,7 @@ function Flow() {
   // locally when the user adds a new category or adds the first node to one.
   const userCategoriesRef = useRef([]);
 
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   const initialGraph = useMemo(() => ({ nodes: [], edges: [] }), []);
 
@@ -627,6 +628,7 @@ function Flow() {
           onClose={() => setFlagMenu(null)}
         />
       )}
+      {!loading && !user && <SignInModal />}
     </div>
     </NodeInteractionContext.Provider>
   );
