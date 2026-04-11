@@ -286,11 +286,10 @@ function Flow() {
   }, [nodes, edges, user, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
   // ── Add node via URL ──────────────────────────────────────────────────────
-  const handleAddNode = useCallback(({ url, category, subcategory, summary, origin }) => {
+  const handleAddNode = useCallback(({ url, category, subcategory, summary, origin, source }) => {
     pushHistory(nodes, edges);
 
-    const color  = getCategoryColor(category);
-    const source = detectSource(url); // derived — not stored in transit, used for lane placement
+    const color = getCategoryColor(category);
 
     // Find the last node in the target lane to chain after it
     const laneNodes = nodes.filter(n => {
@@ -351,7 +350,7 @@ function Flow() {
         user_id:     user.id,
         category,
         subcategory: subcategory ?? null,
-        source:      detectSource(url),
+        source,
         url,
         summary,
         datetime:    new Date().toISOString(),
