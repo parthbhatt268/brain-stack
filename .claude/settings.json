@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Run: git diff HEAD -- src/\n\nIf the output is empty, do nothing and stop.\n\nIf there are changes:\n1. Read backend_final.md to understand the current API contract.\n2. Look at the diff and identify anything that affects the backend — new or changed API calls, changed request/response shapes, new Supabase operations, new endpoints needed. Ignore pure UI/styling changes.\n3. If you find backend-relevant changes, overwrite backend.md (create it if it does not exist, replace all content if it does) with ONLY the following — no other text:\n\n## Backend changes needed — <today's date YYYY-MM-DD>\n- <one bullet per backend-relevant change, specific and actionable>\n\nIf nothing in the diff affects the backend, do nothing — do not create or touch backend.md.",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -72,7 +72,7 @@ function Flow() {
 
   // Tracks which data nodes are currently in use (demo or user-loaded).
   // A ref keeps it out of the render cycle — buildGraph is called explicitly.
-  const dataNodesRef = useRef(demoNodes);
+  const dataNodesRef = useRef([]);
 
   // Tracks user-created categories that have no data nodes yet.
   // Stored separately (not in dataNodesRef) so they persist across view-mode rebuilds.
@@ -82,11 +82,7 @@ function Flow() {
 
   const { user } = useAuth();
 
-  const initialGraph = useMemo(() => {
-    const graph = buildGraph(demoNodes, 'subcategory');
-    graph.nodes = applyPositions(graph.nodes, loadSavedPositions('subcategory'));
-    return graph;
-  }, []); // built once; subsequent changes are driven by handleSetViewMode
+  const initialGraph = useMemo(() => ({ nodes: [], edges: [] }), []);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
@@ -116,33 +112,61 @@ function Flow() {
     fitView({ duration: 600, padding: 0.4 });
   }, [viewMode]); // fitView is stable — intentionally omitted from deps
 
-  // When the user signs in, swap demo graph for their saved graph.
-  // Three parallel Supabase queries — RLS automatically scopes each to the signed-in user.
-  // Silently falls back to demo data if all queries fail or return nothing.
+  // When auth state changes:
+  //   - user signs out  → clear to blank canvas
+  //   - user signs in, has data → load their graph from DB
+  //   - user signs in, no data yet → seed demo nodes into their account, then display
   useEffect(() => {
-    if (!user) return;
-    Promise.all([
-      supabase.from('nodes').select('*'),
-      supabase.from('categories').select('name, color'),
-      supabase.from('graph_positions').select('view_mode, positions'),
-    ]).then(([{ data: nodeData }, { data: catData }, { data: posRows }]) => {
-      const nodes    = nodeData ?? [];
+    if (!user) {
+      dataNodesRef.current = [];
+      userCategoriesRef.current = [];
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
+    (async () => {
+      const [{ data: nodeData }, { data: catData }, { data: posRows }] = await Promise.all([
+        supabase.from('nodes').select('*'),
+        supabase.from('categories').select('name, color'),
+        supabase.from('graph_positions').select('view_mode, positions'),
+      ]);
+
+      const dbNodes  = nodeData ?? [];
       const cats     = catData  ?? [];
       const dbPosMap = Object.fromEntries((posRows ?? []).map(r => [r.view_mode, r.positions]));
 
-      if (!nodes.length && !cats.length) return; // keep demo graph
+      let finalNodes = dbNodes;
+      let finalCats  = cats;
 
-      dataNodesRef.current      = nodes;
-      userCategoriesRef.current = cats;
+      // New demo user (no data yet) — seed the demo graph into their account
+      if (!dbNodes.length && !cats.length && user.email === import.meta.env.VITE_DEMO_EMAIL) {
+        const seedRows = demoNodes.map(n => ({
+          id:          n.id,
+          user_id:     user.id,
+          category:    n.category,
+          subcategory: n.subcategory ?? null,
+          source:      n.source,
+          url:         n.url,
+          summary:     n.summary,
+          datetime:    n.datetime,
+          origin:      n.origin,
+        }));
+        const { error } = await supabase.from('nodes').insert(seedRows);
+        if (error) console.error('Demo seed failed:', error.message);
+        finalNodes = demoNodes;
+        finalCats  = [];
+      }
 
-      const { nodes: newNodes, edges: newEdges } = buildGraph(nodes, viewMode, cats);
+      dataNodesRef.current      = finalNodes;
+      userCategoriesRef.current = finalCats;
 
-      // Prefer DB positions; fall back to localStorage if not saved to DB yet
+      const { nodes: newNodes, edges: newEdges } = buildGraph(finalNodes, viewMode, finalCats);
       const posForMode = dbPosMap[viewMode] ?? loadSavedPositions(viewMode);
       setNodes(applyPositions(newNodes, posForMode));
       setEdges(newEdges);
-    }).catch(() => {}); // keep demo graph on any error
-  // viewMode intentionally excluded — we only reload on sign-in, not on every mode switch
+    })().catch(err => console.error('Graph load failed:', err));
+  // viewMode intentionally excluded — we only reload on auth change, not on every mode switch
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
