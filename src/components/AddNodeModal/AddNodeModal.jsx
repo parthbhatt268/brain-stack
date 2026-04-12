@@ -22,8 +22,8 @@ export default function AddNodeModal({ onAdd, onClose }) {
       const data = await analyseUrl(url.trim());
       onAdd({ url: url.trim(), ...data });
       onClose();
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      setError(err.message ?? 'Something went wrong. Please try again.');
       setLoading(false);
     }
   }

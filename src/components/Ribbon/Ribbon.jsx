@@ -26,7 +26,7 @@ function AuthArea() {
   if (!user) return null;
 
   const isDemoUser  = user.email === import.meta.env.VITE_DEMO_EMAIL;
-  const avatarUrl   = isDemoUser ? null : user.user_metadata?.avatar_url;
+  const avatarUrl   = isDemoUser ? '/demo-profile-pic.png' : user.user_metadata?.avatar_url;
   const displayName = isDemoUser ? 'Demo' : (user.user_metadata?.full_name ?? user.email ?? 'User');
 
   return (
