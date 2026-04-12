@@ -5,6 +5,7 @@ import {
   Undo2, Redo2,
   Clock, Layers, LayoutGrid,
   SlidersHorizontal, ChevronLeft,
+  Trash2, Info,
 } from 'lucide-react';
 import './Toolbar.css';
 
@@ -31,15 +32,16 @@ const VIEW_MODES = [
 ];
 
 // ── Generic toolbar button ────────────────────────────────────────────────────
-function ToolBtn({ icon: Icon, onClick, active, disabled, danger, small, label, title }) {
+function ToolBtn({ icon: Icon, onClick, active, disabled, danger, dangerFill, small, label, title }) {
   return (
     <button
       className={[
         'toolbar__btn',
-        active    ? 'toolbar__btn--active'      : '',
-        disabled  ? 'toolbar__btn--disabled'    : '',
-        danger    ? 'toolbar__btn--danger'      : '',
-        small     ? 'toolbar__btn--small-label' : '',
+        active      ? 'toolbar__btn--active'       : '',
+        disabled    ? 'toolbar__btn--disabled'     : '',
+        danger      ? 'toolbar__btn--danger'       : '',
+        dangerFill  ? 'toolbar__btn--danger-fill'  : '',
+        small       ? 'toolbar__btn--small-label'  : '',
       ].filter(Boolean).join(' ')}
       onClick={disabled ? undefined : onClick}
       title={title}
@@ -106,6 +108,9 @@ export default function Toolbar({
   canRedo,
   onUndo,
   onRedo,
+  selectedNode,
+  onDeleteSelected,
+  onInfo,
 }) {
   const [pickerOpen, setPickerOpen]     = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(true); // open by default on mobile
@@ -188,6 +193,25 @@ export default function Toolbar({
           onClick={onPaste}
           disabled={!hasClipboard}
           title={hasClipboard ? 'Paste nodes' : 'Cut something first'}
+        />
+      </div>
+
+      <div className="toolbar__divider" />
+
+      {/* Node actions — Info & Delete */}
+      <div className="toolbar__group">
+        <ToolBtn
+          icon={Info}
+          onClick={onInfo}
+          disabled={!selectedNode}
+          title={selectedNode ? 'View node details' : 'Select a node first'}
+        />
+        <ToolBtn
+          icon={Trash2}
+          onClick={onDeleteSelected}
+          disabled={!selectedNode}
+          dangerFill
+          title={selectedNode ? 'Delete selected node' : 'Select a node first'}
         />
       </div>
 

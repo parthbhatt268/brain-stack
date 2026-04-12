@@ -87,6 +87,25 @@
   color: #f87171;
 }
 
+/* danger-fill — always shows red icon when enabled (not just on hover) */
+.toolbar__btn--danger-fill:not(.toolbar__btn--disabled) {
+  color: #dc2626;
+}
+
+.toolbar__btn--danger-fill:not(.toolbar__btn--disabled):hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+[data-theme='dark'] .toolbar__btn--danger-fill:not(.toolbar__btn--disabled) {
+  color: #f87171;
+}
+
+[data-theme='dark'] .toolbar__btn--danger-fill:not(.toolbar__btn--disabled):hover {
+  background: #451a1a;
+  color: #f87171;
+}
+
 /* Disabled state — visible but muted, cursor shows tooltip */
 .toolbar__btn--disabled {
   opacity: 0.35;

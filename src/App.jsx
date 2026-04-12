@@ -67,6 +67,47 @@ function applyPositions(nodes, savedPositions) {
   return nodes.map(n => savedPositions[n.id] ? { ...n, position: savedPositions[n.id] } : n);
 }
 
+/**
+ * Remove brain nodes by ID, then prune any subcategory or flag nodes that are
+ * now empty — mirrors what buildGraph would produce on a fresh load.
+ */
+function removeNodesWithCleanup(allNodes, allEdges, nodeIds) {
+  const idSet = new Set(nodeIds);
+  const deletedBrainNodes = allNodes.filter(n => idSet.has(n.id) && n.type === 'brainNode');
+
+  let newNodes = allNodes.filter(n => !idSet.has(n.id));
+  let newEdges = allEdges.filter(e => !idSet.has(e.source) && !idSet.has(e.target));
+
+  for (const deleted of deletedBrainNodes) {
+    const { category, subcategory } = deleted.data;
+    const branchLabel = subcategory || 'General';
+
+    // Prune subcategory node if its branch is now empty
+    const branchStillHasNodes = newNodes.some(
+      n => n.type === 'brainNode'
+        && n.data.category === category
+        && (n.data.subcategory || 'General') === branchLabel,
+    );
+    if (!branchStillHasNodes) {
+      const subCatId = `subcategory-${category}-${branchLabel}`;
+      newNodes = newNodes.filter(n => n.id !== subCatId);
+      newEdges = newEdges.filter(e => e.source !== subCatId && e.target !== subCatId);
+    }
+
+    // Prune flag node if the whole category is now empty
+    const catStillHasNodes = newNodes.some(
+      n => n.type === 'brainNode' && n.data.category === category,
+    );
+    if (!catStillHasNodes) {
+      const flagId = `flag-${category}`;
+      newNodes = newNodes.filter(n => n.id !== flagId);
+      newEdges = newEdges.filter(e => e.source !== flagId && e.target !== flagId);
+    }
+  }
+
+  return { nodes: newNodes, edges: newEdges };
+}
+
 function Flow() {
   // View mode drives the graph layout
   const [viewMode, setViewMode] = useState('subcategory');
@@ -171,7 +212,11 @@ function Flow() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const hasSelection = useMemo(() => nodes.some(n => n.selected), [nodes]);
+  const hasSelection     = useMemo(() => nodes.some(n => n.selected), [nodes]);
+  const selectedBrainNode = useMemo(
+    () => nodes.find(n => n.selected && n.type === 'brainNode') ?? null,
+    [nodes],
+  );
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [highlightedNodeId, setHighlightedNodeId] = useState(null);
@@ -295,12 +340,64 @@ function Flow() {
     triggerAutoSave();
   }, [clipboard, nodes, edges, pushHistory, setNodes, triggerAutoSave]);
 
+  // ── Delete selected brain nodes (keyboard Delete or toolbar Trash) ───────
+  // Persists to DB — fixes the bug where keyboard Delete skipped the DB call.
+  const handleDeleteSelected = useCallback(() => {
+    const selected = nodes.filter(n => n.selected && n.type === 'brainNode');
+    if (!selected.length) return;
+
+    pushHistory(nodes, edges);
+    const selectedIds = new Set(selected.map(n => n.id));
+
+    const { nodes: newNodes, edges: newEdges } = removeNodesWithCleanup(nodes, edges, [...selectedIds]);
+    setNodes(newNodes);
+    setEdges(newEdges);
+
+    // Keep dataNodesRef in sync so view-mode rebuilds don't resurface deleted nodes
+    dataNodesRef.current = dataNodesRef.current.filter(n => !selectedIds.has(n.id));
+
+    if (user) {
+      selected.forEach(n => {
+        supabase.from('nodes').delete().eq('id', n.id)
+          .then(({ error }) => { if (error) console.error('Node delete failed', error.message); });
+      });
+    }
+
+    triggerAutoSave();
+  }, [nodes, edges, user, pushHistory, setNodes, setEdges, triggerAutoSave]);
+
+  // ── Open info modal for the currently selected brain node ─────────────────
+  const handleInfoSelected = useCallback(() => {
+    const node = nodes.find(n => n.selected && n.type === 'brainNode');
+    if (node) setActiveNode(node);
+  }, [nodes]);
+
+  // ── Keyboard Delete — replaces ReactFlow's deleteKeyCode handling ─────────
+  // ReactFlow's built-in deleteKeyCode fires onNodesChange internally and never
+  // reaches handleDeleteNode, so the DB deletion was silently skipped.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== 'Delete') return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+      if (showAddModal || showCategoryModal || activeNode) return;
+      handleDeleteSelected();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [handleDeleteSelected, showAddModal, showCategoryModal, activeNode]);
+
   // ── Delete single node from modal ────────────────────────────────────────
   const handleDeleteNode = useCallback((nodeId) => {
     pushHistory(nodes, edges);
-    setNodes(nds => nds.filter(n => n.id !== nodeId));
-    setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
+
+    const { nodes: newNodes, edges: newEdges } = removeNodesWithCleanup(nodes, edges, [nodeId]);
+    setNodes(newNodes);
+    setEdges(newEdges);
     setActiveNode(null);
+
+    // Keep dataNodesRef in sync so view-mode rebuilds don't resurface deleted nodes
+    dataNodesRef.current = dataNodesRef.current.filter(n => n.id !== nodeId);
 
     if (user) {
       supabase.from('nodes').delete().eq('id', nodeId)
@@ -314,59 +411,25 @@ function Flow() {
   const handleAddNode = useCallback(({ url, category, subcategory, summary, origin, source }) => {
     pushHistory(nodes, edges);
 
-    const color = getCategoryColor(category);
+    const color    = getCategoryColor(category);
+    const newId    = `node-added-${Date.now()}`;
+    const datetime = new Date().toISOString();
 
-    // Find the last node in the target lane to chain after it
-    const laneNodes = nodes.filter(n => {
-      if (n.type !== 'brainNode' || n.data.category !== category) return false;
-      if (viewMode === 'subcategory' && subcategory) return n.data.subcategory === subcategory;
-      if (viewMode === 'platform')   return detectSource(n.data.url) === source;
-      return true;
-    });
-
-    const lastNode = laneNodes.reduce(
-      (latest, n) => (!latest || n.position.y > latest.position.y ? n : latest),
-      null,
-    );
-
-    const newX  = lastNode?.position.x ?? 0;
-    const newY  = lastNode ? lastNode.position.y + 120 : 0;
-    const newId = `node-added-${Date.now()}`;
-
-    const newNode = {
-      id: newId,
-      type: 'brainNode',
-      position: { x: newX, y: newY },
-      data: {
-        id: newId,
-        category,
-        subcategory: subcategory ?? null,
-        url,
-        summary,
-        datetime: new Date().toISOString(),
-        origin,
-        color,
-      },
+    const newDataNode = {
+      id:          newId,
+      category,
+      subcategory: subcategory ?? null,
+      source,
+      url,
+      summary,
+      datetime,
+      origin,
     };
 
-    let edgeSourceId;
-    if (lastNode) {
-      edgeSourceId = lastNode.id;
-    } else if (viewMode === 'subcategory') {
-      const branch = subcategory || 'General';
-      edgeSourceId = `subcategory-${category}-${branch}`;
-    } else {
-      edgeSourceId = `flag-${category}`;
-    }
-    const newEdge = {
-      id: `edge-${edgeSourceId}-${newId}`,
-      source: edgeSourceId,
-      target: newId,
-      type: 'default',
-      style: { stroke: color, strokeWidth: 2 },
-    };
+    // Keep dataNodesRef in sync so subsequent view-mode rebuilds include this node
+    dataNodesRef.current = [...dataNodesRef.current, newDataNode];
 
-    // If this category was empty (tracked separately), it now has a real node — remove it.
+    // If this category was flag-only (no data nodes yet), remove it from the extras list
     userCategoriesRef.current = userCategoriesRef.current.filter(c => c.name !== category);
 
     if (user) {
@@ -378,13 +441,52 @@ function Flow() {
         source,
         url,
         summary,
-        datetime:    new Date().toISOString(),
+        datetime,
         origin,
       }).then(({ error }) => { if (error) console.error('Node save failed', error.message); });
     }
 
-    setNodes(nds => [...nds, newNode]);
-    setEdges(eds => [...eds, newEdge]);
+    // Find the last node already in the target lane
+    const laneNodes = nodes.filter(n => {
+      if (n.type !== 'brainNode' || n.data.category !== category) return false;
+      if (viewMode === 'subcategory' && subcategory) return n.data.subcategory === subcategory;
+      if (viewMode === 'platform') return detectSource(n.data.url) === source;
+      return true;
+    });
+
+    const lastNode = laneNodes.reduce(
+      (latest, n) => (!latest || n.position.y > latest.position.y ? n : latest),
+      null,
+    );
+
+    if (!lastNode) {
+      // First node in this lane — new category or new subcategory/platform branch.
+      // Let buildGraph create the flag + subcategory structural nodes correctly
+      // rather than manually wiring edges to nodes that don't exist yet.
+      const { nodes: newNodes, edges: newEdges } = buildGraph(
+        dataNodesRef.current, viewMode, userCategoriesRef.current,
+      );
+      setNodes(applyPositions(newNodes, loadSavedPositions(viewMode)));
+      setEdges(newEdges);
+    } else {
+      // Appending to an existing lane — manual splice is cheaper than a full rebuild
+      const newNode = {
+        id: newId,
+        type: 'brainNode',
+        position: { x: lastNode.position.x, y: lastNode.position.y + 120 },
+        data: { ...newDataNode, color },
+      };
+      const newEdge = {
+        id:     `edge-${lastNode.id}-${newId}`,
+        source: lastNode.id,
+        target: newId,
+        type:   'default',
+        style:  { stroke: color, strokeWidth: 2 },
+      };
+      setNodes(nds => [...nds, newNode]);
+      setEdges(eds => [...eds, newEdge]);
+    }
+
     triggerAutoSave();
   }, [nodes, edges, viewMode, user, pushHistory, setNodes, setEdges, triggerAutoSave]);
 
@@ -522,6 +624,9 @@ function Flow() {
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
+        selectedNode={selectedBrainNode}
+        onDeleteSelected={handleDeleteSelected}
+        onInfo={handleInfoSelected}
       />
       <ReactFlow
         nodes={displayNodes}
@@ -538,7 +643,7 @@ function Flow() {
         panOnDrag
         minZoom={0.2}
         maxZoom={4}
-        deleteKeyCode="Delete"
+        deleteKeyCode={null}
         defaultEdgeOptions={{ type: 'default' }}
         className={[
           'flow--pan-mode',
