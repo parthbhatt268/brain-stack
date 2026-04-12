@@ -25,9 +25,8 @@ function AuthArea() {
   // When user is null the SignInModal overlay handles sign-in — nothing to show here
   if (!user) return null;
 
-  const isDemoUser  = user.email === import.meta.env.VITE_DEMO_EMAIL;
-  const avatarUrl   = isDemoUser ? '/demo-profile-pic.png' : user.user_metadata?.avatar_url;
-  const displayName = isDemoUser ? 'Demo' : (user.user_metadata?.full_name ?? user.email ?? 'User');
+  const avatarUrl   = user.user_metadata?.avatar_url;
+  const displayName = user.user_metadata?.full_name ?? user.email ?? 'User';
 
   return (
     <div className="ribbon__avatar-wrap" ref={dropdownRef}>

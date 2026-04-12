@@ -16,7 +16,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NodeInteractionContext } from './context/NodeInteractionContext';
 import { supabase } from './lib/supabaseClient';
-import { demoNodes } from './data/demoData';
 import { buildGraph } from './utils/buildGraph';
 import { getCategoryColor } from './utils/categoryColors';
 import BrainNode from './components/BrainNode/BrainNode';
@@ -155,9 +154,8 @@ function Flow() {
   }, [viewMode]); // fitView is stable — intentionally omitted from deps
 
   // When auth state changes:
-  //   - user signs out  → clear to blank canvas
-  //   - user signs in, has data → load their graph from DB
-  //   - user signs in, no data yet → seed demo nodes into their account, then display
+  //   - user signs out → clear to blank canvas
+  //   - user signs in  → load their graph from DB
   useEffect(() => {
     if (!user) {
       dataNodesRef.current = [];
@@ -178,32 +176,10 @@ function Flow() {
       const cats     = catData  ?? [];
       const dbPosMap = Object.fromEntries((posRows ?? []).map(r => [r.view_mode, r.positions]));
 
-      let finalNodes = dbNodes;
-      let finalCats  = cats;
+      dataNodesRef.current      = dbNodes;
+      userCategoriesRef.current = cats;
 
-      // New demo user (no data yet) — seed the demo graph into their account
-      if (!dbNodes.length && !cats.length && user.email === import.meta.env.VITE_DEMO_EMAIL) {
-        const seedRows = demoNodes.map(n => ({
-          id:          n.id,
-          user_id:     user.id,
-          category:    n.category,
-          subcategory: n.subcategory ?? null,
-          source:      n.source,
-          url:         n.url,
-          summary:     n.summary,
-          datetime:    n.datetime,
-          origin:      n.origin,
-        }));
-        const { error } = await supabase.from('nodes').insert(seedRows);
-        if (error) console.error('Demo seed failed:', error.message);
-        finalNodes = demoNodes;
-        finalCats  = [];
-      }
-
-      dataNodesRef.current      = finalNodes;
-      userCategoriesRef.current = finalCats;
-
-      const { nodes: newNodes, edges: newEdges } = buildGraph(finalNodes, viewMode, finalCats);
+      const { nodes: newNodes, edges: newEdges } = buildGraph(dbNodes, viewMode, cats);
       const posForMode = dbPosMap[viewMode] ?? loadSavedPositions(viewMode);
       setNodes(applyPositions(newNodes, posForMode));
       setEdges(newEdges);

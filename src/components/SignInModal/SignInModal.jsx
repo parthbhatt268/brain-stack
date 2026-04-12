@@ -34,7 +34,6 @@ export default function SignInModal() {
       setError(err.message);
       setDemoLoading(false);
     }
-    // on success onAuthStateChange fires → user set → modal unmounts
   }
 
   return (

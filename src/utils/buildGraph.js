@@ -10,7 +10,7 @@ const SUBFLAG_Y_OFFSET    = 140; // px above the first node in each branch (FLAG
 /**
  * Build the full ReactFlow node + edge graph from raw data nodes.
  *
- * @param {object[]} dataNodes      - raw node records from demoData / DB
+ * @param {object[]} dataNodes      - raw node records from the DB
  * @param {'timeline'|'subcategory'|'platform'} viewMode
  *   timeline    — single chronological chain per category
  *   subcategory — branch per subcategory value within each category

@@ -33,6 +33,11 @@ export default function NodeModal({ node, onClose, onDelete }) {
   const source = detectSource(url);
   const originMeta = ORIGIN_LABELS[origin] || ORIGIN_LABELS.added;
 
+  const words = summary?.split(/\s+/) ?? [];
+  const displaySummary = words.length > 100
+    ? words.slice(0, 100).join(' ') + '…'
+    : summary;
+
   return (
     <div
       className="modal-backdrop"
@@ -70,7 +75,7 @@ export default function NodeModal({ node, onClose, onDelete }) {
           {/* Summary */}
           <section className="modal__section">
             <h3 className="modal__section-title">Summary</h3>
-            <p className="modal__summary">{summary}</p>
+            <p className="modal__summary">{displaySummary}</p>
           </section>
 
           {/* Meta */}
