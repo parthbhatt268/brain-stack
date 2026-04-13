@@ -166,11 +166,17 @@ function Flow() {
     }
 
     (async () => {
-      const [{ data: nodeData }, { data: catData }, { data: posRows }] = await Promise.all([
+      const [
+        { data: nodeData, error: nodeErr },
+        { data: catData },
+        { data: posRows },
+      ] = await Promise.all([
         supabase.from('nodes').select('*'),
         supabase.from('categories').select('name, color'),
         supabase.from('graph_positions').select('view_mode, positions'),
       ]);
+
+      if (nodeErr) console.error('Nodes fetch failed:', nodeErr.message);
 
       const dbNodes  = nodeData ?? [];
       const cats     = catData  ?? [];
@@ -183,8 +189,13 @@ function Flow() {
       const posForMode = dbPosMap[viewMode] ?? loadSavedPositions(viewMode);
       setNodes(applyPositions(newNodes, posForMode));
       setEdges(newEdges);
+
+      // fitView after the initial prop already fired on an empty canvas —
+      // give ReactFlow one frame to render the newly set nodes first.
+      if (newNodes.length) setTimeout(() => fitView({ duration: 400, padding: 0.4 }), 50);
     })().catch(err => console.error('Graph load failed:', err));
-  // viewMode intentionally excluded — we only reload on auth change, not on every mode switch
+  // viewMode and fitView intentionally excluded — viewMode: we only reload on auth change,
+  // not on every mode switch. fitView: stable ref from useReactFlow, never changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -197,6 +208,7 @@ function Flow() {
   // ── Search state ──────────────────────────────────────────────────────────
   const [highlightedNodeId, setHighlightedNodeId] = useState(null);
   const [searchNotFound, setSearchNotFound]       = useState(false);
+  const [searchError, setSearchError]             = useState(false);
   const [isSearching, setIsSearching]             = useState(false);
   const highlightTimerRef = useRef(null);
   const notFoundTimerRef  = useRef(null);
@@ -495,6 +507,7 @@ function Flow() {
     if (notFoundTimerRef.current)  clearTimeout(notFoundTimerRef.current);
     setHighlightedNodeId(null);
     setSearchNotFound(false);
+    setSearchError(false);
     setIsSearching(true);
 
     try {
@@ -511,6 +524,9 @@ function Flow() {
       setCenter(result.position.x + 32, result.position.y + 32, { zoom: 2, duration: 650 });
       // Auto-clear highlight after 5 seconds
       highlightTimerRef.current = setTimeout(() => setHighlightedNodeId(null), 5000);
+    } catch {
+      setSearchError(true);
+      notFoundTimerRef.current = setTimeout(() => setSearchError(false), 3500);
     } finally {
       setIsSearching(false);
     }
@@ -521,6 +537,7 @@ function Flow() {
     if (notFoundTimerRef.current)  clearTimeout(notFoundTimerRef.current);
     setHighlightedNodeId(null);
     setSearchNotFound(false);
+    setSearchError(false);
   }, []);
 
   // ── Node drag stop — persist positions ───────────────────────────────────
@@ -640,6 +657,7 @@ function Flow() {
         onClear={handleClearSearch}
         notFound={searchNotFound}
         isSearching={isSearching}
+        hasError={searchError}
       />
 
       {/* Dismiss overlay — closes speed dial when clicking outside */}

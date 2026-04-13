@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 import './SearchBar.css';
 
-export default function SearchBar({ categories, onSearch, onClear, notFound, isSearching }) {
+export default function SearchBar({ categories, onSearch, onClear, notFound, isSearching, hasError }) {
   const [query, setQuery]       = useState('');
   const [category, setCategory] = useState('all');
 
@@ -87,6 +87,13 @@ export default function SearchBar({ categories, onSearch, onClear, notFound, isS
       {notFound && (
         <p className="search-bar__not-found" role="status">
           No matching node found — try rephrasing or selecting a different category.
+        </p>
+      )}
+
+      {/* Error toast */}
+      {hasError && (
+        <p className="search-bar__not-found search-bar__not-found--error" role="alert">
+          Search failed — please try again.
         </p>
       )}
     </form>

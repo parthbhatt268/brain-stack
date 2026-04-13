@@ -149,6 +149,12 @@
   to   { opacity: 0.8; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── Error toast variant ─────────────────────────────────────────────────── */
+.search-bar__not-found--error {
+  border-color: #f87171;
+  color: #f87171;
+}
+
 /* ── Mobile: sit side-by-side with the FAB ───────────────────────────────── */
 @media (max-width: 480px) {
   .search-bar {
