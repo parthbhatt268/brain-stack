@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? '';
+const BASE_URL = (import.meta.env.VITE_API_URL as string) ?? 'https://api-brain-stack.onrender.com';
 
 /**
  * Thin fetch wrapper that attaches the Supabase session JWT as a Bearer token
