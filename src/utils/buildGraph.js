@@ -96,11 +96,12 @@ export function buildGraph(dataNodes, viewMode = 'subcategory', extraCategories 
     flagNodes = categories.map(cat => {
       const catNodes = brainNodes.filter(n => n.data.category === cat);
       const minY = Math.min(...catNodes.map(n => n.position.y));
+      const flagOffset = viewMode === 'timeline' ? NODE_Y_SPACING : FLAG_Y_OFFSET;
 
       return {
         id: `flag-${cat}`,
         type: 'flagNode',
-        position: { x: categoryFlagX[cat], y: minY - FLAG_Y_OFFSET },
+        position: { x: categoryFlagX[cat], y: minY - flagOffset },
         data: { category: cat, color: getCategoryColor(cat) },
         draggable: true,
         selectable: false,
