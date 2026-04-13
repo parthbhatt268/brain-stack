@@ -8,8 +8,8 @@ export default function FlagMenu({ flag, position, nodeCount, onClose }) {
     function handleClick(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleClick, true);
+    return () => document.removeEventListener('mousedown', handleClick, true);
   }, [onClose]);
 
   useEffect(() => {

@@ -6,6 +6,26 @@ Build your own career path — one link at a time.
 
 ---
 
+## Project
+
+Today's students don't follow a linear learning path. They constantly consume content across YouTube, Reddit, Instagram, TikTok, GitHub, and countless articles, jumping between AI research, guitar tutorials, and gardening tips. But none of it sticks. It disappears into forgotten bookmarks and saved posts that never get revisited. Students have no visibility into what they are actually building and no clarity on whether they are gravitating toward AI, music, or something else entirely.
+
+Brain Stack gives that scattered learning a home. When something interesting shows up while scrolling, users hit the share button and send it straight to Brain Stack. It handles everything from there: extracting content from videos, posts, or articles, classifying it into the right category, and placing it onto a personal knowledge graph that grows with every save. That graph can be searched at any point, turning random media consumption into a visible career trajectory the student is building on their own terms.
+
+---
+
+## Outcome
+
+**Clarity on direction** — as a student's graph grows, patterns emerge. The categories with the most nodes are the ones they keep coming back to. Brain Stack makes those interests visible, so a student can see their own career trajectory taking shape instead of guessing at it.
+
+**Instant recall through semantic search** — a student can ask a natural language question like _"that video about training neural networks"_ and the app finds the right node using vector similarity, even if the query shares no words with the original content.
+
+**Zero friction to save** — a student shares a URL and walks away. AI handles classification, subcategory, source detection, and summary automatically. The knowledge graph builds itself.
+
+**Secured behind Google** — every node and search is private to the student. Signing in with Google keeps the entire knowledge base protected and persistent across every device.
+
+---
+
 ## The Problem
 
 The old playbook looked like this: study Module 1, complete Assignment 1, move to Module 2. Linear. Rigid. Prescribed. That model made sense for a world where career paths were fixed and information was scarce.
@@ -71,15 +91,15 @@ If you genuinely want to run it locally, feel free to reach out and I'll share t
 
 Brain Stack has dedicated content extractors for the platforms where most learning actually happens. A few more are on the roadmap but not yet fully supported.
 
-| Platform | Status | Notes |
-|---|---|---|
-| YouTube | Fully supported | Title, description, and metadata via InnerTube API |
-| Reddit | Fully supported | Post content and thread context via Reddit JSON API |
-| GitHub | Fully supported | Repo description, README, and metadata via GitHub API |
-| Articles / blogs | Fully supported | Clean text extraction via Mozilla Readability |
-| LinkedIn | Planned | Icon recognised; content extraction not yet implemented |
-| Instagram | Planned | Icon recognised; content extraction not yet implemented |
-| TikTok | Planned | Icon recognised; content extraction not yet implemented |
+| Platform         | Status          | Notes                                                   |
+| ---------------- | --------------- | ------------------------------------------------------- |
+| YouTube          | Fully supported | Title, description, and metadata via InnerTube API      |
+| Reddit           | Fully supported | Post content and thread context via Reddit JSON API     |
+| GitHub           | Fully supported | Repo description, README, and metadata via GitHub API   |
+| Articles / blogs | Fully supported | Clean text extraction via Mozilla Readability           |
+| LinkedIn         | Planned         | Icon recognised; content extraction not yet implemented |
+| Instagram        | Planned         | Icon recognised; content extraction not yet implemented |
+| TikTok           | Planned         | Icon recognised; content extraction not yet implemented |
 
 The goal is to eventually support every platform students and teenagers actually use. For now, YouTube, Reddit, GitHub, and web articles cover the majority of the content worth saving.
 

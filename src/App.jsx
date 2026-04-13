@@ -560,6 +560,7 @@ function Flow() {
   // brainNode: single click = select only, no modal.
   const handleNodeClick = useCallback((event, node) => {
     if (node.type === 'flagNode') {
+      if (flagMenu?.flag.id === node.id) { setFlagMenu(null); return; }
       const nodeCount = nodes.filter(
         n => n.type === 'brainNode' && n.data.category === node.data.category,
       ).length;
@@ -571,6 +572,7 @@ function Flow() {
       return;
     }
     if (node.type === 'subCategoryNode') {
+      if (flagMenu?.flag.id === node.id) { setFlagMenu(null); return; }
       const { category, label } = node.data;
       const nodeCount = nodes.filter(
         n => n.type === 'brainNode' &&
@@ -586,7 +588,7 @@ function Flow() {
     }
     // brainNode: do nothing here — modal opens on double-click (desktop)
     // or long-press (mobile) via handleNodeDoubleClick / handleLongPress.
-  }, [nodes]);
+  }, [nodes, flagMenu]);
 
   // Desktop: double-click on a brainNode opens its detail modal.
   const handleNodeDoubleClick = useCallback((_event, node) => {
